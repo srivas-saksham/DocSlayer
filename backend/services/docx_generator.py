@@ -2,11 +2,15 @@ from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.table import WD_ALIGN_VERTICAL
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, PythonLexer
 from pygments.formatter import Formatter
 from pygments.token import Token
 import os
+import json
 
 
 # -------------------------------
@@ -158,7 +162,175 @@ def add_syntax_highlighted_code_to_cell(cell, content, file_path, font_size=11):
 
 
 # -------------------------------
-# Templates
+# New Helper Functions for Global Options
+# -------------------------------
+
+def add_credentials(doc, credentials):
+    """Add student details section at the beginning of document."""
+    # Title
+    title = doc.add_paragraph("Student Details")
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = title.runs[0]
+    apply_font(run, size=16, bold=True)
+    
+    # Create table for credentials
+    table = doc.add_table(rows=len(credentials), cols=2)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    for i, (key, value) in enumerate(credentials.items()):
+        # Format key nicely (capitalize and replace underscores)
+        formatted_key = key.replace('_', ' ').title() + ":"
+        
+        # Add key and value
+        key_cell = table.rows[i].cells[0]
+        value_cell = table.rows[i].cells[1]
+        
+        # Set alignment for key cell (center both horizontally and vertically)
+        key_paragraph = key_cell.paragraphs[0]
+        key_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        key_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        
+        # Set alignment for value cell (center horizontally, top vertically)
+        value_paragraph = value_cell.paragraphs[0]
+        value_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        value_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+        
+        key_run = key_paragraph.add_run(formatted_key)
+        apply_font(key_run, size=12, bold=True)
+        
+        value_run = value_paragraph.add_run(value)
+        apply_font(value_run, size=12)
+        
+        # Apply shading to key cells
+        apply_shading(key_cell, "E8E8E8")
+    
+    # Add some space after credentials
+    doc.add_paragraph()
+
+
+def add_index_page(doc, index_fields, num_questions):
+    """Add index page with table format."""
+    # Title
+    title = doc.add_paragraph("Index")
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = title.runs[0]
+    apply_font(run, size=16, bold=True)
+    
+    # Convert frontend index_fields format to field list
+    if isinstance(index_fields, str):
+        try:
+            index_fields = json.loads(index_fields)
+        except:
+            index_fields = {}
+    
+    # Map frontend boolean fields to display names
+    field_mapping = {
+        'sno': 'S. No.',
+        'topic': 'Topic', 
+        'date': 'Date',
+        'teacherSignature': "Teacher's Signature"
+    }
+    
+    # Build field list from enabled fields
+    enabled_fields = []
+    if isinstance(index_fields, dict):
+        for key, enabled in index_fields.items():
+            if enabled and key in field_mapping:
+                enabled_fields.append(field_mapping[key])
+    
+    # Fallback if no fields enabled
+    if not enabled_fields:
+        enabled_fields = ["S. No.", "Topic", "Date", "Teacher's Signature"]
+    
+    # Create table with headers + rows for each question
+    table = doc.add_table(rows=num_questions + 1, cols=len(enabled_fields))
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # Add headers
+    for i, field in enumerate(enabled_fields):
+        cell = table.rows[0].cells[i]
+        paragraph = cell.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER  # Horizontal center
+        run = paragraph.add_run(field)
+        apply_font(run, size=12, bold=True)
+        apply_shading(cell, "D9D9D9")
+        
+        # Set vertical alignment for header cells
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    
+    # Add rows with auto-filled data
+    for row_idx in range(1, num_questions + 1):
+        for col_idx, field in enumerate(enabled_fields):
+            cell = table.rows[row_idx].cells[col_idx]
+            paragraph = cell.paragraphs[0]
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER  # Horizontal center for data cells
+            
+            # Set vertical alignment for data cells (top aligned)
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+            
+            # Auto-fill S. No. and Topic columns
+            if field.lower() in ["s. no.", "s.no.", "serial no.", "sr. no."]:
+                run = paragraph.add_run(str(row_idx))
+                apply_font(run, size=11)
+            elif field.lower() in ["topic", "question", "problem"]:
+                run = paragraph.add_run(f"Question {row_idx}")
+                apply_font(run, size=11)
+            # Leave Date and Teacher's Signature empty for manual filling
+    
+    # Add page break after index
+    doc.add_page_break()
+
+def add_page_numbering(doc):
+    """Add page numbering to all sections."""
+    for section in doc.sections:
+        # Access the footer
+        footer = section.footer
+        
+        # Clear existing footer content
+        footer.paragraphs[0].clear()
+        
+        # Add page numbering
+        footer_para = footer.paragraphs[0]
+        footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Add page number field
+        run = footer_para.add_run("Page ")
+        apply_font(run, size=10)
+        
+        # Add page number field
+        fldChar1 = OxmlElement('w:fldChar')
+        fldChar1.set(qn('w:fldCharType'), 'begin')
+        
+        instrText = OxmlElement('w:instrText')
+        instrText.text = "PAGE"
+        
+        fldChar2 = OxmlElement('w:fldChar')
+        fldChar2.set(qn('w:fldCharType'), 'end')
+        
+        run._r.append(fldChar1)
+        run._r.append(instrText)
+        run._r.append(fldChar2)
+        
+        run = footer_para.add_run(" of ")
+        apply_font(run, size=10)
+        
+        # Add total pages field
+        fldChar3 = OxmlElement('w:fldChar')
+        fldChar3.set(qn('w:fldCharType'), 'begin')
+        
+        instrText2 = OxmlElement('w:instrText')
+        instrText2.text = "NUMPAGES"
+        
+        fldChar4 = OxmlElement('w:fldChar')
+        fldChar4.set(qn('w:fldCharType'), 'end')
+        
+        run._r.append(fldChar3)
+        run._r.append(instrText2)
+        run._r.append(fldChar4)
+
+
+# -------------------------------
+# Templates (unchanged)
 # -------------------------------
 
 def apply_template1(doc, idx, content, file_path, highlight=False):
@@ -226,35 +398,58 @@ def apply_template3(doc, idx, content, file_path, highlight=False):
 
 
 # -------------------------------
-# Main Generator
+# Updated Main Generator
 # -------------------------------
 
-def generate_docx(files: list, template: str, output_path: str, highlight=False):
+def generate_docx(files: list, template: str, output_path: str, syntax_highlight=False, 
+                  include_credentials=False, credentials=None, 
+                  index_auto_generation=False, index_fields=None,
+                  page_numbering=False):
     """
-    Generate a DOCX document using a chosen template.
+    Generate a DOCX document using a chosen template with optional global features.
     - files: list of file paths to include
     - template: template1 | template2 | template3
     - output_path: output .docx path
-    - highlight: True = syntax-colored code, False = plain text
+    - syntax_highlight: True = syntax-colored code, False = plain text
+    - include_credentials: True = add student details section
+    - credentials: dict of credential fields and values
+    - index_auto_generation: True = add index page
+    - index_fields: dict/JSON of boolean fields for index table
+    - page_numbering: True = add page numbers to footer
     """
     doc = Document()
 
     # Set narrow margins globally
     set_doc_margins(doc, margin_inch=0.5)
 
+    # Add credentials section if enabled
+    if include_credentials and credentials:
+        add_credentials(doc, credentials)
+        doc.add_page_break()
+
+    # Add index page if enabled
+    if index_auto_generation:
+        add_index_page(doc, index_fields, len(files))
+
+    # Process files with selected template
     for idx, file_path in enumerate(files, 1):
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         if template == "template1":
-            apply_template1(doc, idx, content, file_path, highlight)
+            apply_template1(doc, idx, content, file_path, syntax_highlight)
         elif template == "template2":
-            apply_template2(doc, idx, content, file_path, highlight)
+            apply_template2(doc, idx, content, file_path, syntax_highlight)
         elif template == "template3":
-            apply_template3(doc, idx, content, file_path, highlight)
+            apply_template3(doc, idx, content, file_path, syntax_highlight)
         else:
             # Fallback → template1
-            apply_template1(doc, idx, content, file_path, highlight)
+            apply_template1(doc, idx, content, file_path, syntax_highlight)
 
+    # Add page numbering if enabled (must be done after all content is added)
+    if page_numbering:
+        add_page_numbering(doc)
+
+    # Save document
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     doc.save(output_path)

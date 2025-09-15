@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function DocSlayerHero() {
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, ['/']);
 
   const handleClick = () => {
     setIsClicked(true);

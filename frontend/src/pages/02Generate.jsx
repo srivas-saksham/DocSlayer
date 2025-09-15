@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw  } from 'lucide-react';
+import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning   } from 'lucide-react';
+import { renderAsync } from 'docx-preview';
+import { useEffect } from 'react';
 
 export default function DocGeneratorPage() {
   const [dragActive, setDragActive] = useState(false);
@@ -12,9 +14,22 @@ export default function DocGeneratorPage() {
   const [showSupportedFiles, setShowSupportedFiles] = useState(false);
   const [generatedFileUrl, setGeneratedFileUrl] = useState(null);
   const [previewGeneratedDoc, setPreviewGeneratedDoc] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [isConvertingPreview, setIsConvertingPreview] = useState(false);
+  const [previewContainer, setPreviewContainer] = useState(null);
+
+  // Index and Page Numbering Options
+  const [indexAutoGeneration, setIndexAutoGeneration] = useState(false);
+  const [indexFields, setIndexFields] = useState({
+    sno: true,
+    topic: true,
+    date: true,
+    teacherSignature: true
+  });
+  const [pageNumbering, setPageNumbering] = useState(false);
+  const [aiExplanations, setAiExplanations] = useState(false);
+  const [includeCodeOutputs, setIncludeCodeOutputs] = useState(false);
+
   const fileInputRef = useRef(null);
 
   // Additional Options State
@@ -27,6 +42,11 @@ export default function DocGeneratorPage() {
     teacherName: '',
     assignmentDate: ''
   });
+
+  // Scroll to top on component mount
+  useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, ['/generate']);
 
   const templates = [
     {
@@ -159,6 +179,13 @@ export default function DocGeneratorPage() {
     }
   };
 
+  const handleIndexFieldChange = (field, value) => {
+    setIndexFields(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const removeFile = (fileId) => {
     setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
     if (uploadedFiles.length === 1) {
@@ -173,6 +200,17 @@ export default function DocGeneratorPage() {
     setSelectedTemplateId(null);
     setIsComplete(false);
     setProgress(0);
+    
+    // Clean up URLs
+    if (generatedFileUrl) {
+      URL.revokeObjectURL(generatedFileUrl);
+      setGeneratedFileUrl(null);
+    }
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(null);
+    }
+    
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -183,6 +221,83 @@ export default function DocGeneratorPage() {
       ...prev,
       [field]: value
     }));
+  };
+
+  const previewDocx = async (docxBlob) => {
+    try {
+      setIsConvertingPreview(true);
+      
+      const arrayBuffer = await docxBlob.arrayBuffer();
+      
+      // Create a simple container for the DOCX preview
+      const previewContainer = document.createElement('div');
+      previewContainer.className = 'docx-preview-container';
+      previewContainer.style.cssText = `
+        width: 100%;
+        height: 100%;
+        background-color: #f5f5f5;
+        padding: 20px;
+        overflow-y: auto;
+        font-family: 'Times New Roman', serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #000000;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      `;
+      
+      // Render DOCX directly
+      await renderAsync(arrayBuffer, previewContainer, null, {
+        className: "docx-preview-pages",
+        inWrapper: false,
+        ignoreWidth: false,
+        ignoreHeight: false,
+        ignoreFonts: false,
+        breakPages: true,
+        ignoreLastRenderedPageBreak: false,
+        experimental: false,
+        trimXmlDeclaration: true,
+        useBase64URL: false,
+        useMathMLPolyfill: false,
+        showChanges: false,
+        debug: false
+      });
+      
+      /// Add gaps between pages by overriding docx-preview default style
+      const pages = previewContainer.querySelectorAll('section');
+      pages.forEach((page, index) => {
+        page.style.background = "white";
+        page.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+        page.style.padding = "40px";
+        page.style.margin = "0";
+        page.style.width = "100%";
+        page.style.maxWidth = "800px";
+        page.style.boxSizing = "border-box";
+
+        // 👇 This increases the natural gap instead of thin line
+        if (index > 0) {
+          page.style.marginTop = "30px";  // Increase from 1–2px to e.g. 30px
+          page.style.borderTop = "none";  // Remove thin border line
+        }
+      });
+      
+      // Ensure tables and cells keep their borders
+      const tables = previewContainer.querySelectorAll("table, table td, table th");
+      tables.forEach(cell => {
+        cell.style.border = "1px solid #000";      // restore black borders
+        cell.style.borderCollapse = "collapse";   // prevent double borders
+      });
+
+      setIsConvertingPreview(false);
+      return previewContainer;
+      
+    } catch (error) {
+      console.error('Error previewing DOCX:', error);
+      setIsConvertingPreview(false);
+      return null;
+    }
   };
 
   const generateDocs = async () => {
@@ -202,7 +317,14 @@ export default function DocGeneratorPage() {
     const formData = new FormData();
     formData.append("template", selectedTemplateId);
     formData.append("syntax_highlight", syntaxHighlighting ? "true" : "false");
-    
+    formData.append("index_auto_generation", indexAutoGeneration ? "true" : "false");
+    formData.append("page_numbering", pageNumbering ? "true" : "false");
+
+    // Index fields
+    if (indexAutoGeneration) {
+      formData.append("index_fields", JSON.stringify(indexFields));
+    }
+
     if (includeCredentials) {
       formData.append("include_credentials", "true");
       Object.entries(credentials).forEach(([key, value]) => {
@@ -211,7 +333,7 @@ export default function DocGeneratorPage() {
     } else {
       formData.append("include_credentials", "false");
     }
-
+    
     uploadedFiles.forEach((fileObj) => {
       formData.append("files", fileObj.file);
     });
@@ -228,19 +350,16 @@ export default function DocGeneratorPage() {
         throw new Error("Failed to generate document");
       }
 
-      // Get blob
+      // Get DOCX blob
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
-      // Save in state for download button
+      // Save DOCX URL for download
       setGeneratedFileUrl(url);
 
-      // Create preview URL for iframe (convert blob to data URL for preview)
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        setPreviewUrl(e.target.result);
-      };
-      reader.readAsDataURL(blob);
+      // Create preview container for DOCX
+      const container = await previewDocx(blob);
+      setPreviewContainer(container);
 
       setIsGenerating(false);
       setIsComplete(true);
@@ -260,7 +379,7 @@ export default function DocGeneratorPage() {
 
     const a = document.createElement("a");
     a.href = generatedFileUrl;
-    a.download = "generated.docx";
+    a.download = "DocSlayer CodeDoc File.docx";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -286,16 +405,14 @@ export default function DocGeneratorPage() {
   );
 
   return (
-    <div className="min-h-screen bg-primary flex items-center justify-center p-4">
+    <div className="min-h-screen bg-primary flex items-center justify-center p-4 relative">
       {/* Dotted Grid Background */}
-      <div
-        className="absolute top-0 left-0 w-full opacity-20 dark:opacity-30 pointer-events-none"
+      <div 
+        className="absolute inset-0 opacity-20 dark:opacity-30"
         style={{
-          height: `${document.documentElement.scrollHeight}px`, // full scrollable height
           backgroundImage: `radial-gradient(circle, #44413c 2px, transparent 1px)`,
           backgroundSize: "30px 30px",
-          backgroundPosition: "0 0",
-          zIndex: 0
+          backgroundPosition: "0 0"
         }}
       ></div>
 
@@ -500,9 +617,9 @@ export default function DocGeneratorPage() {
               Additional Options
             </h2>
             <div className="bg-secondary rounded-xl p-6 border border-accent/20">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* Left Column - General Options */}
+                {/* Left Column - General & Advanced Options */}
                 <div className="space-y-6">
                   <h3 className="text-lg font-semibold text-accent font-jost mb-4">
                     General Options
@@ -515,19 +632,117 @@ export default function DocGeneratorPage() {
                   />
                   
                   <ToggleSwitch
+                    enabled={indexAutoGeneration}
+                    onChange={setIndexAutoGeneration}
+                    label="Index Auto Generation"
+                  />
+                  
+                  {indexAutoGeneration && (
+                    <div className="ml-4 pl-4 border-l-2 border-accent/20 space-y-3 animate-in fade-in duration-300">
+                      <p className="text-sm text-text font-jost mb-3">Select index fields to include:</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={indexFields.sno}
+                            onChange={(e) => handleIndexFieldChange('sno', e.target.checked)}
+                            className="w-4 h-4 rounded border-2 border-accent/40 bg-primary focus:ring-2 focus:ring-accent/20 checked:bg-accent checked:border-accent"
+                            style={{
+                              accentColor: '#44413c'
+                            }}
+                          />
+                          <span className="text-sm text-text font-jost">S.No</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={indexFields.topic}
+                            onChange={(e) => handleIndexFieldChange('topic', e.target.checked)}
+                            className="w-4 h-4 rounded border-2 border-accent/40 bg-primary focus:ring-2 focus:ring-accent/20 checked:bg-accent checked:border-accent"
+                            style={{
+                              accentColor: '#44413c'
+                            }}
+                          />
+                          <span className="text-sm text-text font-jost">Topic (Q1-Q2)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={indexFields.date}
+                            onChange={(e) => handleIndexFieldChange('date', e.target.checked)}
+                            className="w-4 h-4 rounded border-2 border-accent/40 bg-primary focus:ring-2 focus:ring-accent/20 checked:bg-accent checked:border-accent"
+                            style={{
+                              accentColor: '#44413c'
+                            }}
+                          />
+                          <span className="text-sm text-text font-jost">Date</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={indexFields.teacherSignature}
+                            onChange={(e) => handleIndexFieldChange('teacherSignature', e.target.checked)}
+                            className="w-4 h-4 rounded border-2 border-accent/40 bg-primary focus:ring-2 focus:ring-accent/20 checked:bg-accent checked:border-accent"
+                            style={{
+                              accentColor: '#44413c'
+                            }}
+                          />
+                          <span className="text-sm text-text font-jost">Teacher's Signature</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <ToggleSwitch
+                    enabled={pageNumbering}
+                    onChange={setPageNumbering}
+                    label="Page Numbering (Footer)"
+                  />
+                  
+                  <ToggleSwitch
                     enabled={includeCredentials}
                     onChange={setIncludeCredentials}
                     label="Include Assignment Credentials"
                   />
+                  
+                  {/* Advanced Options */}
+                  <div className="pt-4 border-t border-accent/20">
+                    <h4 className="text-lg font-semibold text-accent font-jost mb-4">
+                      Advanced Options
+                    </h4>
+                    
+                    {/* Coming Soon Section */}
+                    <div className="space-y-4">
+                      <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                        <div className="flex items-center justify-between opacity-60">
+                          <span className="text-text font-jost font-medium">Include Code Outputs</span>
+                          <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-not-allowed">
+                            <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-1" />
+                          </div>
+                        </div>
+                        <p className="text-xs text-accent font-jost mt-2 font-medium">Coming Soon</p>
+                      </div>
+                      
+                      <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                        <div className="flex items-center justify-between opacity-60">
+                          <span className="text-text font-jost font-medium">AI Explanations/Summaries</span>
+                          <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-not-allowed">
+                            <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-1" />
+                          </div>
+                        </div>
+                        <p className="text-xs text-accent font-jost mt-2 font-medium">Coming Soon</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Right Column - Credential Fields */}
+                {/* Right Column - Assignment Details */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-accent font-jost mb-4">
                     Assignment Details
                   </h3>
                   
-                  {includeCredentials && (
+                  {includeCredentials ? (
                     <div className="space-y-4 animate-in fade-in duration-300">
                       <div>
                         <label className="block text-sm font-medium text-text font-jost mb-2">
@@ -593,9 +808,7 @@ export default function DocGeneratorPage() {
                         />
                       </div>
                     </div>
-                  )}
-                  
-                  {!includeCredentials && (
+                  ) : (
                     <div className="text-center py-8">
                       <p className="text-text/60 font-jost text-sm">
                         Enable assignment credentials to add student details to your documentation
@@ -693,6 +906,12 @@ export default function DocGeneratorPage() {
         {previewTemplate && (
           <div
             className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end"
+            style={{ 
+              top: '55px', // Start below navbar (adjust this value based on your navbar height)
+              left: 0,
+              right: 0,
+              bottom: 0
+            }}
             onClick={() => setPreviewTemplate(null)}
           >
             <div
@@ -727,49 +946,116 @@ export default function DocGeneratorPage() {
         {/* Generated Document Preview Modal */}
         {previewGeneratedDoc && (
           <div
-            className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end"
+            className="fixed bg-black/70 z-[9999] flex items-center justify-end"
+            style={{ 
+              top: '55px', // Start below navbar (adjust this value based on your navbar height)
+              left: 0,
+              right: 0,
+              bottom: 0
+            }}
             onClick={() => setPreviewGeneratedDoc(false)}
           >
             <div
-              className="bg-white h-full w-[45%] shadow-lg transform transition-transform duration-300 ease-out relative"
+              className="bg-secondary h-full w-[50%] shadow-2xl transform transition-transform duration-300 ease-out relative border-l border-accent/20"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b bg-white relative z-10">
-                <h3 className="text-lg font-semibold text-accent font-jost">
-                  Generated Documentation Preview
-                </h3>
-                <button
-                  onClick={() => setPreviewGeneratedDoc(false)}
-                  className="text-text hover:text-accent transition-colors p-2 rounded-lg hover:bg-accent/10"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-4 h-[calc(100%-80px)] bg-gray-100">
-                <div className="w-full h-full border-0 rounded-lg bg-white flex flex-col items-center justify-center text-center p-8">
-                  <div className="bg-accent/10 rounded-full p-6 mb-4">
-                    <Download className="w-12 h-12 text-accent" />
+              {/* Enhanced Header */}
+              <div className="flex items-center justify-between p-6 border-b border-accent/20 bg-secondary">
+                <div className="flex items-center gap-4">
+                  <div className="bg-accent/10 p-2 rounded-lg">
+                    <Eye className="w-5 h-5 text-accent" />
                   </div>
-                  <h4 className="text-lg font-semibold text-accent font-jost mb-2">
-                    Document Ready for Download
-                  </h4>
-                  <p className="text-text font-jost mb-6 max-w-sm">
-                    Your documentation has been generated successfully. Word documents cannot be previewed directly in the browser, but you can download it to view the contents.
-                  </p>
+                  <div>
+                    <h3 className="text-xl font-bold text-accent font-jost">
+                      Documentation Preview
+                    </h3>
+                    <p className="text-sm text-text font-jost mt-1">
+                      Generated from {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}
+                    </p>
+                    {pageNumbering && (
+                      <div className="mt-2 flex items-center gap-2 rounded-md bg-yellow-100 px-2 py-1">
+                        <FileWarning className="w-4 h-4 text-yellow-700" />
+                        <span className="text-sm font-jost text-yellow-700">
+                          Page numbers might not be visible (only for preview)
+                        </span>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => {
-                      downloadDocs();
-                      setPreviewGeneratedDoc(false);
-                    }}
-                    className="bg-accent hover:bg-accent/95 text-white px-6 py-3 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 font-jost"
+                    onClick={downloadDocs}
+                    className="bg-accent hover:bg-accent/95 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center gap-2 font-jost hover:scale-105 shadow-lg"
+                    title="Download DOCX"
                   >
-                    <Download size={18} />
-                    Download Now
+                    <Download size={16} />
+                    Download
+                  </button>
+                  <button
+                    onClick={() => setPreviewGeneratedDoc(false)}
+                    className="text-text hover:text-accent transition-all duration-300 p-2 rounded-lg hover:bg-accent/10 hover:scale-110"
+                    title="Close Preview"
+                  >
+                    <X size={20} />
                   </button>
                 </div>
+              </div>
+
+              {/* Enhanced Body */}
+              <div className="p-4 h-[calc(100%-120px)] bg-primary/30">
+                {isConvertingPreview ? (
+                  <div className="w-full h-full border-0 rounded-xl bg-white flex items-center justify-center shadow-inner">
+                    <div className="text-center">
+                      <div className="bg-accent/10 rounded-full p-6 mb-4 mx-auto w-fit">
+                        <Loader className="w-12 h-12 text-accent animate-spin" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-accent font-jost mb-2">
+                        Preparing Document Preview
+                      </h4>
+                      <p className="text-text font-jost">
+                        Rendering your documentation...
+                      </p>
+                    </div>
+                  </div>
+                ) : previewContainer ? (
+                  <div 
+                    className="w-full h-full border-0 rounded-xl overflow-auto shadow-inner custom-scrollbar"
+                    style={{
+                      backgroundColor: '#e5e5e5',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#44413c #f1f1f1'
+                    }}
+                    ref={(el) => {
+                      if (el && previewContainer) {
+                        el.innerHTML = '';
+                        el.appendChild(previewContainer);
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full border-0 rounded-xl bg-white flex items-center justify-center shadow-inner">
+                    <div className="text-center max-w-md">
+                      <div className="bg-red-50 rounded-full p-6 mb-4 mx-auto w-fit border border-red-100">
+                        <X className="w-12 h-12 text-red-500" />
+                      </div>
+                      <h4 className="text-xl font-bold text-red-500 font-jost mb-3">
+                        Preview Unavailable
+                      </h4>
+                      <p className="text-text font-jost mb-6 leading-relaxed">
+                        We couldn't generate a preview of your document, but your documentation was created successfully.
+                      </p>
+                      <button
+                        onClick={downloadDocs}
+                        className="bg-accent hover:bg-accent/95 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 mx-auto font-jost hover:scale-105 shadow-lg"
+                      >
+                        <Download size={18} />
+                        Download DOCX
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
