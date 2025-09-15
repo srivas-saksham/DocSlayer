@@ -7,7 +7,7 @@ app = FastAPI(title="DocSlayer Backend")
 # Allow frontend to talk to backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # frontend URL
+    allow_origins=["*"],  # frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

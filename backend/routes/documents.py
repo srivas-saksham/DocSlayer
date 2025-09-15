@@ -1,9 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import os
 import uuid
+import tempfile
+import shutil
 
 from services.docx_generator import generate_docx
+from docx2pdf import convert  # Make sure docx2pdf is installed
 
 router = APIRouter()
 
@@ -35,7 +38,7 @@ async def generate_document(
     output_filename = f"{uuid.uuid4()}.docx"
     output_path = os.path.join(UPLOAD_DIR, output_filename)
 
-      # 🔹 Add debug logs here
+    # Debug logs
     print("Template selected:", template)
     print("Saved files:", saved_files)
     print("Output path:", output_path)
@@ -58,10 +61,42 @@ async def download_file(filename: str):
     """
     file_path = os.path.join(UPLOAD_DIR, filename)
     if not os.path.exists(file_path):
-        return {"error": "File not found"}
+        return JSONResponse({"error": "File not found"}, status_code=404)
     
     return FileResponse(
         path=file_path,
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
+
+
+@router.post("/convert-to-pdf")
+async def convert_docx_to_pdf(file: UploadFile = File(...)):
+    """
+    Accepts a DOCX file, makes a safe copy, converts it to PDF,
+    and returns the PDF file.
+    """
+    try:
+        # Save uploaded DOCX temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
+            content = await file.read()
+            temp_docx.write(content)
+            temp_docx.flush()
+
+            # Create a safe copy (avoids "File In Use" lock by Word)
+            temp_copy = temp_docx.name.replace(".docx", "_copy.docx")
+            shutil.copy(temp_docx.name, temp_copy)
+
+            # Convert copy → PDF
+            temp_pdf_path = temp_docx.name.replace(".docx", ".pdf")
+            convert(temp_copy, temp_pdf_path)
+
+        # Return the PDF
+        return FileResponse(
+            temp_pdf_path,
+            filename=os.path.basename(temp_pdf_path),
+            media_type="application/pdf"
+        )
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)

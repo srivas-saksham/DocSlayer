@@ -11,6 +11,10 @@ export default function DocGeneratorPage() {
   const [progress, setProgress] = useState(0);
   const [showSupportedFiles, setShowSupportedFiles] = useState(false);
   const [generatedFileUrl, setGeneratedFileUrl] = useState(null);
+  const [previewGeneratedDoc, setPreviewGeneratedDoc] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
+  const [isConvertingPreview, setIsConvertingPreview] = useState(false);
   const fileInputRef = useRef(null);
 
   // Additional Options State
@@ -231,6 +235,13 @@ export default function DocGeneratorPage() {
       // Save in state for download button
       setGeneratedFileUrl(url);
 
+      // Create preview URL for iframe (convert blob to data URL for preview)
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        setPreviewUrl(e.target.result);
+      };
+      reader.readAsDataURL(blob);
+
       setIsGenerating(false);
       setIsComplete(true);
       setProgress(100);
@@ -276,7 +287,19 @@ export default function DocGeneratorPage() {
 
   return (
     <div className="min-h-screen bg-primary flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl mx-auto">
+      {/* Dotted Grid Background */}
+      <div
+        className="absolute top-0 left-0 w-full opacity-20 dark:opacity-30 pointer-events-none"
+        style={{
+          height: `${document.documentElement.scrollHeight}px`, // full scrollable height
+          backgroundImage: `radial-gradient(circle, #44413c 2px, transparent 1px)`,
+          backgroundSize: "30px 30px",
+          backgroundPosition: "0 0",
+          zIndex: 0
+        }}
+      ></div>
+
+      <div className="w-full max-w-4xl mx-auto relative z-10">
         
         {/* Section Header */}
         <div className="text-center mb-12">
@@ -639,13 +662,22 @@ export default function DocGeneratorPage() {
               <p className="text-text font-jost mb-6">
                 Your documentation has been successfully created and is ready for download.
               </p>
-              <button
-                onClick={downloadDocs}
-                className="bg-accent hover:bg-accent/95 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-3 mx-auto font-jost"
-              >
-                <Download size={20} />
-                Download Documentation
-              </button>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={() => setPreviewGeneratedDoc(true)}
+                  className="bg-transparent border border-accent text-accent hover:bg-accent/10 px-6 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-3 font-jost"
+                >
+                  <Eye size={20} />
+                  Preview Document
+                </button>
+                <button
+                  onClick={downloadDocs}
+                  className="bg-accent hover:bg-accent/95 text-white px-6 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-3 font-jost"
+                >
+                  <Download size={20} />
+                  Download Documentation
+                </button>
+              </div>
             </div>
             <button
               onClick={removeAllFiles}
@@ -687,6 +719,57 @@ export default function DocGeneratorPage() {
                   className="w-full h-full border-0 rounded-lg bg-white"
                   title={templates.find((t) => t.id === previewTemplate)?.name || "Template Preview"}
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Generated Document Preview Modal */}
+        {previewGeneratedDoc && (
+          <div
+            className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end"
+            onClick={() => setPreviewGeneratedDoc(false)}
+          >
+            <div
+              className="bg-white h-full w-[45%] shadow-lg transform transition-transform duration-300 ease-out relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b bg-white relative z-10">
+                <h3 className="text-lg font-semibold text-accent font-jost">
+                  Generated Documentation Preview
+                </h3>
+                <button
+                  onClick={() => setPreviewGeneratedDoc(false)}
+                  className="text-text hover:text-accent transition-colors p-2 rounded-lg hover:bg-accent/10"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 h-[calc(100%-80px)] bg-gray-100">
+                <div className="w-full h-full border-0 rounded-lg bg-white flex flex-col items-center justify-center text-center p-8">
+                  <div className="bg-accent/10 rounded-full p-6 mb-4">
+                    <Download className="w-12 h-12 text-accent" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-accent font-jost mb-2">
+                    Document Ready for Download
+                  </h4>
+                  <p className="text-text font-jost mb-6 max-w-sm">
+                    Your documentation has been generated successfully. Word documents cannot be previewed directly in the browser, but you can download it to view the contents.
+                  </p>
+                  <button
+                    onClick={() => {
+                      downloadDocs();
+                      setPreviewGeneratedDoc(false);
+                    }}
+                    className="bg-accent hover:bg-accent/95 text-white px-6 py-3 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 font-jost"
+                  >
+                    <Download size={18} />
+                    Download Now
+                  </button>
+                </div>
               </div>
             </div>
           </div>
