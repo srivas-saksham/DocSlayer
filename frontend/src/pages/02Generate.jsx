@@ -17,7 +17,7 @@ export default function DocGeneratorPage() {
   const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
   const [isConvertingPreview, setIsConvertingPreview] = useState(false);
   const [previewContainer, setPreviewContainer] = useState(null);
-
+  
   // Index and Page Numbering Options
   const [indexAutoGeneration, setIndexAutoGeneration] = useState(false);
   const [indexFields, setIndexFields] = useState({
@@ -29,6 +29,17 @@ export default function DocGeneratorPage() {
   const [pageNumbering, setPageNumbering] = useState(false);
   const [aiExplanations, setAiExplanations] = useState(false);
   const [includeCodeOutputs, setIncludeCodeOutputs] = useState(false);
+
+  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null); 
+
+  const [fakeProgress, setFakeProgress] = useState(true);
+  const [currentQuote, setCurrentQuote] = useState('');
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [showDebugControls, setShowDebugControls] = useState(process.env.NODE_ENV === 'development');
+
+  // Add a flag to track download state
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -48,35 +59,128 @@ export default function DocGeneratorPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
   }, ['/generate']);
 
+  // Check if user has disabled warnings on component mount
+  useEffect(() => {
+  const warningDisabled = localStorage.getItem('docslayer-disable-leave-warning');
+  
+  // Handle navigation within the app (using popstate for route changes)
+  const handlePopState = (e) => {
+    if (isComplete && generatedFileUrl && warningDisabled !== 'true' && !isDownloading) {
+      e.preventDefault();
+      window.history.pushState(null, '', window.location.pathname);
+      setShowLeaveWarning(true);
+      setPendingNavigation(() => () => window.history.back());
+    }
+  };
+
+  // Handle navigation using History API
+  const originalPushState = window.history.pushState;
+  const originalReplaceState = window.history.replaceState;
+
+  window.history.pushState = function(state, title, url) {
+    if (isComplete && generatedFileUrl && warningDisabled !== 'true' && !isDownloading) {
+      setShowLeaveWarning(true);
+      setPendingNavigation(() => () => originalPushState.call(window.history, state, title, url));
+      return;
+    }
+    return originalPushState.call(window.history, state, title, url);
+  };
+
+  window.history.replaceState = function(state, title, url) {
+    if (isComplete && generatedFileUrl && warningDisabled !== 'true' && !isDownloading) {
+      setShowLeaveWarning(true);
+      setPendingNavigation(() => () => originalReplaceState.call(window.history, state, title, url));
+      return;
+    }
+    return originalReplaceState.call(window.history, state, title, url);
+  };
+
+  // Handle link clicks
+  const handleLinkClick = (e) => {
+    if (isComplete && generatedFileUrl && warningDisabled !== 'true' && !isDownloading) {
+      const target = e.target.closest('a');
+      if (target && target.href && !target.href.includes('#') && !target.download) {
+        e.preventDefault();
+        setShowLeaveWarning(true);
+        setPendingNavigation(() => () => window.location.href = target.href);
+      }
+    }
+  };
+
+  window.addEventListener('popstate', handlePopState);
+  document.addEventListener('click', handleLinkClick);
+
+  return () => {
+    window.removeEventListener('popstate', handlePopState);
+    document.removeEventListener('click', handleLinkClick);
+    
+    // Restore original methods
+    window.history.pushState = originalPushState;
+    window.history.replaceState = originalReplaceState;
+  };
+}, [isComplete, generatedFileUrl, isDownloading]); // Add isDownloading to dependencies
+
+  useEffect(() => {
+    let quoteInterval;
+    if (isGenerating) {
+      // Set random initial quote
+      const randomIndex = Math.floor(Math.random() * funQuotes.length);
+      setCurrentQuote(funQuotes[randomIndex]);
+      setQuoteIndex(randomIndex);
+      
+      // Rotate quotes every 5 seconds with random selection
+      quoteInterval = setInterval(() => {
+        setQuoteIndex(prev => {
+          let nextIndex;
+          do {
+            nextIndex = Math.floor(Math.random() * funQuotes.length);
+          } while (nextIndex === prev && funQuotes.length > 1); // Avoid showing same quote twice in a row
+          
+          setCurrentQuote(funQuotes[nextIndex]);
+          return nextIndex;
+        });
+      }, 5000);
+    }
+
+    return () => {
+      if (quoteInterval) clearInterval(quoteInterval);
+    };
+  }, [isGenerating]);
+
   const templates = [
     {
       id: 'template1',
       name: 'Professional Template',
       thumbnail: '/templates/template1.pdf',
+      image: '/templates/template1.png',
       description: 'Clean and professional documentation layout'
     },
     {
       id: 'template2', 
       name: 'Modern Template',
       thumbnail: '/templates/template2.pdf',
+      image: '/templates/template2.png',
       description: 'Modern design with vibrant colors'
     },
     {
       id: 'template3',
       name: 'Minimalist Template', 
       thumbnail: '/templates/template3.pdf',
+      image: '/templates/template3.png',
       description: 'Simple and elegant minimalist design'
     },
     {
       id: 'template4',
       name: 'Academic Template', 
       thumbnail: '/templates/template4.pdf',
+      image: '/templates/template4.png',
       description: 'Formal academic style with structured layout'
     },
     {
       id: 'template5',
       name: 'Creative Template', 
       thumbnail: '/templates/template5.pdf',
+      image: '/templates/template5.png',
       description: 'Creative design with colorful elements'
     }
   ];
@@ -130,10 +234,27 @@ export default function DocGeneratorPage() {
       { ext: '.jl', name: 'Julia' }
     ]
   };
-
+  
   const getAllExtensions = () => {
     return Object.values(supportedFormats).flat().map(format => format.ext);
   };
+
+  const funQuotes = [
+    "Converting your spaghetti code into fine dining...",
+    "Teaching your variables some manners...",
+    "Convincing your functions to work together...",
+    "Adding some style to your semicolons...",
+    "Making your code less embarrassing to show mom...",
+    "Translating developer tears into documentation...",
+    "Turning your midnight coding sessions into art...",
+    "Making your code comments actually useful...",
+    "Organizing your chaos into beautiful chaos...",
+    "Adding professional makeup to your code...",
+    "Converting coffee into documentation magic...",
+    "Making your professor proud (finally)...",
+    "Transforming panic-written code into poetry...",
+    "Adding some dignity to your variable names..."
+  ];
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -226,12 +347,39 @@ export default function DocGeneratorPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+
+    // Reset warning state
+    setPendingNavigation(null);
   };
 
   const handleCredentialChange = (field, value) => {
     setCredentials(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+
+  const handleLeaveConfirm = () => {
+    const dontShowCheckbox = document.querySelector('#dont-show-warning');
+    if (dontShowCheckbox && dontShowCheckbox.checked) {
+      localStorage.setItem('docslayer-disable-leave-warning', 'true');
+    }
+    
+    setShowLeaveWarning(false);
+    
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+  };
+
+  const handleLeaveCancel = () => {
+    setShowLeaveWarning(false);
+    setPendingNavigation(null);
+    
+    // Reset navbar active tab to Generate
+    window.dispatchEvent(new CustomEvent('resetActiveTab', { 
+      detail: { tabName: 'Generate' } 
     }));
   };
 
@@ -326,6 +474,16 @@ export default function DocGeneratorPage() {
     setIsGenerating(true);
     setProgress(0);
 
+    const minDuration = fakeProgress ? 7000 : 1000; // 7 seconds minimum if fake progress enabled
+    const startTime = Date.now();
+
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const naturalProgress = Math.min((elapsed / minDuration) * 95, 95);
+      setProgress(naturalProgress);
+    }, 100);
+
     const formData = new FormData();
     formData.append("template", selectedTemplateId);
     formData.append("syntax_highlight", syntaxHighlighting ? "true" : "false");
@@ -364,6 +522,20 @@ export default function DocGeneratorPage() {
 
       // Get DOCX blob
       const blob = await response.blob();
+      
+      // Ensure minimum duration has passed
+      const elapsed = Date.now() - startTime;
+      const remainingTime = Math.max(0, minDuration - elapsed);
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+      
+      clearInterval(progressInterval);
+      
+      // Complete the progress
+      setProgress(100);
+      
       const url = window.URL.createObjectURL(blob);
 
       // Save DOCX URL for download
@@ -375,11 +547,12 @@ export default function DocGeneratorPage() {
 
       setIsGenerating(false);
       setIsComplete(true);
-      setProgress(100);
     } catch (err) {
+      clearInterval(progressInterval);
       console.error(err);
       alert("Error generating document");
       setIsGenerating(false);
+      setProgress(0);
     }
   };
 
@@ -389,12 +562,19 @@ export default function DocGeneratorPage() {
       return;
     }
 
+    setIsDownloading(true);
+    
     const a = document.createElement("a");
     a.href = generatedFileUrl;
     a.download = "DocSlayer CodeDoc File.docx";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    
+    // Reset download flag after a short delay
+    setTimeout(() => {
+      setIsDownloading(false);
+    }, 1000);
   };
 
   // Toggle Switch Component
@@ -654,18 +834,18 @@ export default function DocGeneratorPage() {
                         : 'border-accent/20 hover:border-accent/50 bg-secondary hover:bg-accent'
                     }`}
                   >
-                    {/* Template Thumbnail */}
+                   {/* Template Thumbnail */}
                     <div className="bg-white rounded-lg mb-4 h-32 flex items-center justify-center border border-accent/10 overflow-hidden">
                       <img
-                        src={template.thumbnail}
+                        src={template.image}
                         alt={`${template.name} preview`}
                         className="w-full h-full object-cover rounded-lg"
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'block';
+                          e.target.nextElementSibling.style.display = 'flex';
                         }}
                       />
-                      <div className="text-accent/50 font-jost text-sm hidden">
+                      <div className="text-accent/50 font-jost text-sm hidden items-center justify-center w-full h-full">
                         PDF Preview
                       </div>
                     </div>
@@ -944,30 +1124,107 @@ export default function DocGeneratorPage() {
           </div>
         )}
 
-        {/* Progress Section */}
+        {/* Enhanced Progress Section */}
         {isGenerating && (
           <div className="mb-8">
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Loader className="w-6 h-6 text-accent animate-spin" />
-                <span className="text-xl font-semibold text-accent font-jost">
-                  Generating your documentation...
-                </span>
+            <div className="bg-secondary rounded-2xl p-8 border border-accent/20 relative overflow-hidden">
+              {/* background particles */}
+              <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute w-32 h-32 bg-accent/5 rounded-full -top-16 -left-16"></div>
+                <div className="absolute w-24 h-24 bg-accent/10 rounded-full top-1/2 right-8"></div>
+                <div className="absolute w-16 h-16 bg-accent/5 rounded-full bottom-4 left-1/3"></div>
+              </div>
+              
+              <div className="relative z-10">
+                {/* Header with spinner */}
+                <div className="text-center mb-8">
+                  <div className="flex items-center justify-center gap-4 mb-6">
+                    <div className="relative">
+                      <Loader className="w-8 h-8 text-accent animate-spin" />
+                      <div className="absolute inset-0 w-8 h-8 border-2 border-accent/20 rounded-full animate-ping"></div>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-accent font-jost mb-1">
+                        Crafting Your Documentation
+                      </h3>
+                      <p className="text-sm text-text font-jost opacity-80">
+                        This might take a moment, but it'll be worth it
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Fun Quote Section */}
+                  <div className="bg-accent/5 rounded-xl p-4 border border-accent/10 mb-6 min-h-[60px] flex items-center justify-center">
+                    <p className="text-accent font-jost text-lg font-medium text-center leading-relaxed animate-in fade-in duration-500">
+                      {currentQuote}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Enhanced Progress Bar */}
+        <div className="space-y-4">
+          <div className="relative">
+            <div className="w-full bg-primary rounded-full h-4 overflow-hidden border border-accent/20 shadow-inner">
+              <div 
+                className="h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-500 ease-out rounded-full relative overflow-hidden"
+                style={{ width: `${progress}%` }}
+              >
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
               </div>
             </div>
-            <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
-              <div 
-                className="h-full bg-accent transition-all duration-300 ease-out rounded-full"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <div className="text-center mt-2">
-              <span className="text-sm text-text font-jost">
-                {Math.round(progress)}% complete
+            
+            {/* Progress percentage with animation */}
+            <div className="absolute right-0 -top-8">
+              <span className="bg-accent text-primary text-xs font-bold px-2 py-1 rounded-full font-jost animate-bounce">
+                {Math.round(progress)}%
               </span>
             </div>
           </div>
+          
+          {/* Progress details */}
+          <div className="flex justify-between items-center text-sm text-text font-jost">
+            <span className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
+              Processing {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}
+            </span>
+            <span className="text-accent/70">
+              {progress < 30 && "Analyzing code structure..."}
+              {progress >= 30 && progress < 60 && "Generating documentation..."}
+              {progress >= 60 && progress < 90 && "Applying template styling..."}
+              {progress >= 90 && "Finalizing document..."}
+            </span>
+          </div>
+        </div>
+
+        {/* Debug Controls (Development Only) */}
+        {showDebugControls && (
+          <div className="mt-6 pt-4 border-t border-accent/20">
+            <div className="flex items-center justify-center gap-4">
+              <span className="text-xs text-text font-jost opacity-60">DEV CONTROLS:</span>
+              <button
+                onClick={() => setFakeProgress(!fakeProgress)}
+                className={`text-xs px-3 py-1 rounded-full font-jost font-semibold transition-all duration-200 ${
+                  fakeProgress 
+                    ? 'bg-accent text-white' 
+                    : 'bg-accent/10 text-accent hover:bg-accent/20'
+                }`}
+              >
+                Fake Progress: {fakeProgress ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={() => setShowDebugControls(false)}
+                className="text-xs text-text/50 hover:text-text transition-colors"
+              >
+                Hide
+              </button>
+            </div>
+          </div>
         )}
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Result Section */}
         {isComplete && (
@@ -989,10 +1246,15 @@ export default function DocGeneratorPage() {
                   Preview Document
                 </button>
                 <button
-                  onClick={downloadDocs}
+                  onClick={() => {
+                    setIsDownloading(true);
+                    downloadDocs();
+                    setTimeout(() => setIsDownloading(false), 1000);
+                  }}
                   className="bg-accent hover:bg-accent/95 text-white px-6 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-3 font-jost"
+                  title="Download DOCX"
                 >
-                  <Download size={20} />
+                  <Download size={16} />
                   Download Documentation
                 </button>
               </div>
@@ -1166,6 +1428,64 @@ export default function DocGeneratorPage() {
           </div>
         )}
 
+        {/* Leave Warning Modal */}
+        {showLeaveWarning && (
+          <div
+            className="fixed inset-0 bg-black/70 z-[99999] flex items-center justify-center p-4"
+            onClick={(e) => e.target === e.currentTarget && handleLeaveCancel()}
+          >
+            <div
+              className="bg-secondary rounded-2xl p-8 max-w-md w-full shadow-2xl border border-accent/20 transform transition-all duration-300 scale-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="bg-yellow-100 rounded-full p-3 mx-auto mb-4 w-fit">
+                  <FileWarning className="w-8 h-8 text-yellow-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-accent font-jost mb-2">
+                  File Will Be Lost
+                </h3>
+                <p className="text-text font-jost leading-relaxed">
+                  Your generated document is temporarily stored. If you leave this page, the file will be permanently deleted and you'll need to regenerate it.
+                </p>
+              </div>
+
+              {/* Don't Show Again Checkbox */}
+              <div className="mb-6">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    id="dont-show-warning"
+                    className="w-4 h-4 rounded border-2 border-accent/40 bg-primary focus:ring-2 focus:ring-accent/20 checked:bg-accent checked:border-accent transition-all duration-200"
+                    style={{
+                      accentColor: '#44413c'
+                    }}
+                  />
+                  <span className="text-sm text-text font-jost group-hover:text-accent transition-colors">
+                    Don't show this warning again
+                  </span>
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleLeaveCancel}
+                  className="flex-1 bg-accent hover:bg-accent/95 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 font-jost hover:scale-105 shadow-lg"
+                >
+                  Stay on Page
+                </button>
+                <button
+                  onClick={handleLeaveConfirm}
+                  className="flex-1 bg-transparent border border-accent/30 text-text hover:text-accent hover:bg-accent/10 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 font-jost hover:scale-105"
+                >
+                  Leave Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

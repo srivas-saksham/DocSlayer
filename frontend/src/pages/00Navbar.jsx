@@ -43,6 +43,18 @@ const Navbar = () => {
     return () => window.removeEventListener('popstate', updateActiveTab);
   }, []);
 
+  // Handle Stay on page UI from Generate.jsx
+  useEffect(() => {
+    const handleResetActiveTab = (event) => {
+      if (event.detail && event.detail.tabName) {
+        setActiveTab(event.detail.tabName);
+      }
+    };
+
+    window.addEventListener('resetActiveTab', handleResetActiveTab);
+    return () => window.removeEventListener('resetActiveTab', handleResetActiveTab);
+  }, []);
+
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
@@ -52,6 +64,15 @@ const Navbar = () => {
   };
 
   const handleTabClick = (tabName) => {
+    // Check if we're trying to navigate away from generate page with generated content
+    const isOnGeneratePage = window.location.pathname === '/generate';
+    const hasGeneratedContent = window.DocSlayerGeneratedContent === true; // This flag will be set by DocGeneratorPage
+    
+    if (isOnGeneratePage && hasGeneratedContent && tabName !== 'Generate') {
+      // Don't immediately change the active tab - let the warning modal handle it
+      return;
+    }
+    
     setActiveTab(tabName);
     setIsMobileMenuOpen(false);
   };
