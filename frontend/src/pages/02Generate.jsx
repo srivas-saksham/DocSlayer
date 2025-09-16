@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning   } from 'lucide-react';
+import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning, ChevronLeft, ChevronRight} from 'lucide-react';
 import { renderAsync } from 'docx-preview';
 import { useEffect } from 'react';
 
@@ -66,6 +66,18 @@ export default function DocGeneratorPage() {
       name: 'Minimalist Template', 
       thumbnail: '/templates/template3.pdf',
       description: 'Simple and elegant minimalist design'
+    },
+    {
+      id: 'template4',
+      name: 'Academic Template', 
+      thumbnail: '/templates/template4.pdf',
+      description: 'Formal academic style with structured layout'
+    },
+    {
+      id: 'template5',
+      name: 'Creative Template', 
+      thumbnail: '/templates/template5.pdf',
+      description: 'Creative design with colorful elements'
     }
   ];
 
@@ -561,51 +573,144 @@ export default function DocGeneratorPage() {
             <h2 className="text-2xl font-bold text-accent mb-6 text-center font-jost">
               Choose a Template
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className={`bg-secondary rounded-xl p-6 border-2 transition-all duration-300 cursor-pointer ${
-                    selectedTemplateId === template.id
-                      ? 'border-accent shadow-lg scale-105'
-                      : 'border-accent/20 hover:border-accent/50'
-                  }`}
-                >
-                  {/* Template Thumbnail */}
-                  <div className="bg-white rounded-lg mb-4 h-32 flex items-center justify-center border border-accent/10">
-                    <div className="text-accent/50 font-jost text-sm">
-                      PDF Preview
+            
+            {/* Template Carousel Container */}
+            <div className="relative">
+              {/* Left Arrow Button */}
+              <button
+                onClick={() => {
+                  const container = document.getElementById('template-container');
+                  container.scrollBy({ left: -264, behavior: 'smooth' });
+                }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-secondary/90 hover:bg-accent border border-accent/20 rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 group"
+              >
+                <ChevronLeft className="w-5 h-5 text-accent group-hover:text-primary transition-colors" />
+              </button>
+
+              {/* Right Arrow Button */}
+              <button
+                onClick={() => {
+                  const container = document.getElementById('template-container');
+                  container.scrollBy({ left: 264, behavior: 'smooth' });
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-secondary/90 hover:bg-accent border border-accent/20 rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 group"
+              >
+                <ChevronRight className="w-5 h-5 text-accent group-hover:text-primary transition-colors" />
+              </button>
+
+              {/* Fade Gradients */}
+              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-primary to-transparent z-[5] pointer-events-none"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-primary to-transparent z-[5] pointer-events-none"></div>
+
+              {/* Scrollable Template Container */}
+              <div
+                id="template-container"
+                className="flex gap-6 overflow-x-auto scrollbar-hide px-8 py-4 scroll-smooth cursor-grab active:cursor-grabbing"
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain'
+                }}
+                onMouseDown={(e) => {
+                  const container = e.currentTarget;
+                  const startX = e.pageX - container.offsetLeft;
+                  const scrollLeft = container.scrollLeft;
+                  let isScrolling = false;
+                  
+                  const handleMouseMove = (e) => {
+                    isScrolling = true;
+                    const x = e.pageX - container.offsetLeft;
+                    const walk = (x - startX);
+                    container.scrollLeft = scrollLeft - walk;
+                  };
+                  
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                    container.style.cursor = 'grab';
+                    
+                    // Prevent click events if we were scrolling
+                    if (isScrolling) {
+                      setTimeout(() => { isScrolling = false; }, 50);
+                    }
+                  };
+                  
+                  container.style.cursor = 'grabbing';
+                  document.addEventListener('mousemove', handleMouseMove);
+                  document.addEventListener('mouseup', handleMouseUp);
+                }}
+                onWheel={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.scrollLeft += e.deltaY;
+                }}
+              >
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
+                    className={`flex-none w-60 rounded-xl p-6 border-2 transition-all duration-300 cursor-pointer select-none group ${
+                      selectedTemplateId === template.id
+                        ? 'border-accent shadow-lg scale-105 bg-accent'
+                        : 'border-accent/20 hover:border-accent/50 bg-secondary hover:bg-accent'
+                    }`}
+                  >
+                    {/* Template Thumbnail */}
+                    <div className="bg-white rounded-lg mb-4 h-32 flex items-center justify-center border border-accent/10 overflow-hidden">
+                      <img
+                        src={template.thumbnail}
+                        alt={`${template.name} preview`}
+                        className="w-full h-full object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }}
+                      />
+                      <div className="text-accent/50 font-jost text-sm hidden">
+                        PDF Preview
+                      </div>
+                    </div>
+                    
+                    <h3 className={`font-semibold font-jost text-lg mb-2 transition-colors duration-300 ${
+                      selectedTemplateId === template.id
+                        ? 'text-primary'
+                        : 'text-accent group-hover:text-primary'
+                    }`}>
+                      {template.name}
+                    </h3>
+                    <p className={`font-jost text-sm mb-4 transition-colors duration-300 ${
+                      selectedTemplateId === template.id
+                        ? 'text-primary/80'
+                        : 'text-text group-hover:text-primary/80'
+                    }`}>
+                      {template.description}
+                    </p>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPreviewTemplate(template.id)}
+                        className={`flex-1 border px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300 font-jost flex items-center justify-center gap-2 ${
+                          selectedTemplateId === template.id
+                            ? 'bg-transparent border-primary text-primary hover:bg-primary/10'
+                            : 'bg-transparent border-accent text-accent hover:bg-accent/10 group-hover:border-primary group-hover:text-primary'
+                        }`}
+                      >
+                        <Eye size={16} />
+                        Preview
+                      </button>
+                      <button
+                        onClick={() => setSelectedTemplateId(template.id)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300 font-jost ${
+                          selectedTemplateId === template.id
+                            ? 'bg-primary text-accent hover:bg-primary/90'
+                            : 'bg-accent hover:bg-accent/90 text-white group-hover:bg-primary group-hover:text-accent'
+                        }`}
+                      >
+                        {selectedTemplateId === template.id ? 'Selected' : 'Select'}
+                      </button>
                     </div>
                   </div>
-                  
-                  <h3 className="font-semibold text-accent font-jost text-lg mb-2">
-                    {template.name}
-                  </h3>
-                  <p className="text-text font-jost text-sm mb-4">
-                    {template.description}
-                  </p>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPreviewTemplate(template.id)}
-                      className="flex-1 bg-transparent border border-accent text-accent hover:bg-accent/10 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300 font-jost flex items-center justify-center gap-2"
-                    >
-                      <Eye size={16} />
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => setSelectedTemplateId(template.id)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300 font-jost ${
-                        selectedTemplateId === template.id
-                          ? 'bg-accent text-white'
-                          : 'bg-accent hover:bg-accent/90 text-white'
-                      }`}
-                    >
-                      {selectedTemplateId === template.id ? 'Selected' : 'Select'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}

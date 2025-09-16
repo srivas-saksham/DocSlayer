@@ -398,6 +398,119 @@ def apply_template3(doc, idx, content, file_path, highlight=False):
 
 
 # -------------------------------
+# New Templates
+# -------------------------------
+
+def apply_template4(doc, idx, content, file_path, highlight=False):
+    """Template 4: Academic/lab report style with formal structure."""
+    if idx > 1:
+        doc.add_page_break()
+
+    # Heading (left-aligned, Times New Roman, 14pt, bold, underlined)
+    heading = doc.add_paragraph(f"Question {idx}")
+    heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run = heading.runs[0]
+    apply_font(run, size=14, bold=True, font_name="Times New Roman")
+    run.underline = True
+
+    # Add some spacing after heading
+    doc.add_paragraph()
+
+    # Aim section
+    aim_para = doc.add_paragraph()
+    aim_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    aim_label = aim_para.add_run("Aim: ")
+    apply_font(aim_label, size=12, bold=True, font_name="Times New Roman")
+    aim_text = aim_para.add_run("Write aim here.")
+    apply_font(aim_text, size=12, font_name="Times New Roman")
+
+    # Algorithm section
+    algo_para = doc.add_paragraph()
+    algo_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    algo_label = algo_para.add_run("Algorithm: ")
+    apply_font(algo_label, size=12, bold=True, font_name="Times New Roman")
+    algo_text = algo_para.add_run("Steps of solution here.")
+    apply_font(algo_text, size=12, font_name="Times New Roman")
+
+    # Source Code subheading in shaded cell
+    table = doc.add_table(rows=1, cols=1)
+    cell = table.rows[0].cells[0]
+    run = cell.paragraphs[0].add_run("Source Code")
+    apply_font(run, size=14, bold=True, font_name="Times New Roman")
+    apply_shading(cell, "D9D9D9")
+
+    # Code block in table cell
+    code_table = doc.add_table(rows=1, cols=1)
+    code_cell = code_table.rows[0].cells[0]
+
+    if highlight:
+        add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=10)
+    else:
+        run = code_cell.paragraphs[0].add_run(content)
+        apply_font(run, size=10, font_name="Consolas")
+
+    # Add horizontal line (simulated with thin paragraph spacing)
+    doc.add_paragraph()
+    
+    # Teacher's signature placeholder
+    signature_para = doc.add_paragraph()
+    signature_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    sig_run = signature_para.add_run("Teacher's Signature: ____________________")
+    apply_font(sig_run, size=11, font_name="Times New Roman")
+
+
+def apply_template5(doc, idx, content, file_path, highlight=False):
+    """Template 5: Creative colorful style with fun presentation elements."""
+    if idx > 1:
+        doc.add_page_break()
+
+    # Decorative border around entire question (outer table)
+    border_table = doc.add_table(rows=1, cols=1)
+    border_cell = border_table.rows[0].cells[0]
+    
+    # Alternate background shading for each question block
+    if idx % 2 == 0:
+        apply_shading(border_cell, "F0F8FF")  # Alice Blue for even questions
+    else:
+        apply_shading(border_cell, "F5F5F5")  # White Smoke for odd questions
+    
+    # Clear the border cell and add content inside
+    border_cell.paragraphs[0].clear()
+    
+    # Heading with emoji (centered, colored)
+    heading_para = border_cell.add_paragraph(f"🎨 Creative Challenge Q{idx}")
+    heading_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = heading_para.runs[0]
+    apply_font(run, size=18, bold=True, font_name="Segoe UI")
+    run.font.color.rgb = RGBColor(0, 128, 128)  # Teal color
+
+    # Add extra spacing
+    border_cell.add_paragraph()
+
+    # Subheading in shaded cell (sky blue background)
+    sub_table = border_cell.add_table(rows=1, cols=1)
+    sub_cell = sub_table.rows[0].cells[0]
+    run = sub_cell.paragraphs[0].add_run("✨ Source Code ✨")
+    apply_font(run, size=14, bold=True, font_name="Segoe UI")
+    apply_shading(sub_cell, "E6F7FF")  # Light sky blue
+
+    # Code block with light yellow background
+    code_table = border_cell.add_table(rows=1, cols=1)
+    code_cell = code_table.rows[0].cells[0]
+    apply_shading(code_cell, "FFF9E6")  # Light yellow
+
+    if highlight:
+        add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=11)
+    else:
+        run = code_cell.paragraphs[0].add_run(content)
+        apply_font(run, size=11, font_name="Consolas")
+
+    # Add extra padding/spacing at bottom
+    border_cell.add_paragraph()
+    border_cell.add_paragraph()
+
+
+# -------------------------------
 # Updated Main Generator
 # -------------------------------
 
@@ -408,7 +521,7 @@ def generate_docx(files: list, template: str, output_path: str, syntax_highlight
     """
     Generate a DOCX document using a chosen template with optional global features.
     - files: list of file paths to include
-    - template: template1 | template2 | template3
+    - template: template1 | template2 | template3 | template4 | template5
     - output_path: output .docx path
     - syntax_highlight: True = syntax-colored code, False = plain text
     - include_credentials: True = add student details section
@@ -442,6 +555,10 @@ def generate_docx(files: list, template: str, output_path: str, syntax_highlight
             apply_template2(doc, idx, content, file_path, syntax_highlight)
         elif template == "template3":
             apply_template3(doc, idx, content, file_path, syntax_highlight)
+        elif template == "template4":
+            apply_template4(doc, idx, content, file_path, syntax_highlight)
+        elif template == "template5":
+            apply_template5(doc, idx, content, file_path, syntax_highlight)
         else:
             # Fallback → template1
             apply_template1(doc, idx, content, file_path, syntax_highlight)
