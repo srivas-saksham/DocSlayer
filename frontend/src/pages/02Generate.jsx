@@ -698,7 +698,7 @@ export default function DocGeneratorPage() {
         )}
 
         {/* Uploaded Files List */}
-        {uploadedFiles.length > 0 && !isComplete && (
+        {!isGenerating && uploadedFiles.length > 0 && !isComplete && (
           <div className="mb-8">
             <div className="bg-secondary rounded-xl p-6 border border-accent/20">
               <div className="flex items-center justify-between mb-4">
