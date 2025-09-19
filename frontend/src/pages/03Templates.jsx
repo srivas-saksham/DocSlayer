@@ -5,6 +5,7 @@ const TemplatePage = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [layoutView, setLayoutView] = useState('block'); // 'block' or 'concise'
+  const [redirectingTemplateId, setRedirectingTemplateId] = useState(null);
 
   // Template data
   const templates = [
@@ -57,8 +58,12 @@ const TemplatePage = () => {
   };
 
   const handleUseTemplate = (templateId) => {
-    // In a real app, this would use React Router
-    window.location.href = `/generate?template=${templateId}`;
+    if (!redirectingTemplateId) {
+      setRedirectingTemplateId(templateId);
+      setTimeout(() => {
+        window.location.href = `/generate?template=${templateId}`;
+      }, 3000);
+    }
   };
 
   // Handle ESC key press
@@ -146,11 +151,13 @@ const TemplatePage = () => {
                 className="bg-white border-2 border-stone-700/20 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer select-none group hover:border-stone-700/50 hover:bg-stone-700"
               >
                 {/* Template Image */}
-                <div className="aspect-[1/1.2] scale-90 bg-stone-50 overflow-hidden">
+                <div className="aspect-[1/1.2] scale-90 bg-stone-50 overflow-hidden rounded-[50px]">
                   <img
                     src={template.image}
                     alt={template.name}
-                    className="w-full h-full object-cover hover:scale-95 transition-transform duration-300"
+                    draggable="false"
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="w-full h-full object-cover group-hover:scale-95 transition-transform duration-300"
                     onError={(e) => {
                       e.target.style.display = 'none';
                       e.target.nextElementSibling.style.display = 'flex';
@@ -172,17 +179,39 @@ const TemplatePage = () => {
                     </p>
                   </div>
 
-                  {/* Preview Button - Centered with Large Width */}
-                  <div className="flex justify-center">
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         openPreview(template);
                       }}
-                      className="flex items-center justify-center gap-2 px-6 py-3 text-sm border rounded-md transition-all duration-300 font-medium w-full bg-accent border-stone-700 text-primary hover:bg-primary hover:text-stone-700 group-hover:border-accent group-hover:text-accent group-hover:bg-primary group-hover:hover:bg-stone-300"
+                      className="flex items-center justify-center gap-2 px-4 py-3 text-sm border rounded-md transition-all duration-300 font-medium flex-1 bg-transparent border-stone-700 text-stone-700 hover:bg-stone-200 group-hover:border-white group-hover:text-white group-hover:hover:bg-white group-hover:hover:text-stone-700"
                     >
                       <Eye size={16} />
                       Preview
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUseTemplate(template.id);
+                      }}
+                      disabled={redirectingTemplateId !== null}
+                      className="flex items-center justify-center gap-2 px-4 py-3 text-sm border rounded-md transition-all duration-300 font-medium flex-1 bg-accent border-stone-700 text-primary hover:bg-primary hover:text-stone-700 group-hover:border-accent group-hover:text-accent group-hover:bg-primary group-hover:hover:bg-stone-300"
+                    >
+                      {redirectingTemplateId === template.id ? (
+                        <>
+                          Redirecting
+                          <span className="flex gap-1">
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </span>
+                        </>
+                      ) : (
+                        'Use Template'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -225,17 +254,39 @@ const TemplatePage = () => {
                     </p>
                   </div>
 
-                  {/* Preview Button */}
-                  <div className="flex-shrink-0">
+                  {/* Action Buttons */}
+                  <div className="flex-shrink-0 flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         openPreview(template);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 text-sm border rounded-md transition-all duration-300 font-medium bg-transparent border-stone-700 text-stone-700 hover:bg-white hover:text-stone-700 group-hover:border-white group-hover:text-white group-hover:hover:bg-white group-hover:hover:text-stone-700"
+                      className="flex items-center gap-2 px-3 py-2 text-sm border rounded-md transition-all duration-300 font-medium bg-transparent border-stone-700 text-stone-700 hover:bg-stone-200 group-hover:border-white group-hover:text-white group-hover:hover:bg-white group-hover:hover:text-stone-700"
                     >
                       <Eye size={16} />
                       Preview
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUseTemplate(template.id);
+                      }}
+                      disabled={redirectingTemplateId !== null}
+                      className="flex items-center gap-2 px-3 py-2 text-sm border rounded-md transition-all duration-300 font-medium bg-accent border-stone-700 text-primary hover:bg-primary hover:text-stone-700 group-hover:border-accent group-hover:text-accent group-hover:bg-primary group-hover:hover:bg-stone-300"
+                    >
+                      {redirectingTemplateId === template.id ? (
+                        <>
+                          Redirecting
+                          <span className="flex gap-1">
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </span>
+                        </>
+                      ) : (
+                        'Use Template'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -300,10 +351,24 @@ const TemplatePage = () => {
           <div className="absolute bottom-6 left-6 right-6">
             <button
               onClick={() => selectedTemplate && handleUseTemplate(selectedTemplate.id)}
+              disabled={redirectingTemplateId !== null}
               className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-stone-700 text-white rounded-md hover:bg-stone-800 transition-colors duration-200 font-medium"
             >
-              Use This Template
-              <ArrowRight size={18} />
+              {redirectingTemplateId === selectedTemplate?.id ? (
+                <>
+                  Redirecting
+                  <span className="flex gap-1">
+                    <span className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  Use This Template
+                  <ArrowRight size={18} />
+                </>
+              )}
             </button>
           </div>
         </div>

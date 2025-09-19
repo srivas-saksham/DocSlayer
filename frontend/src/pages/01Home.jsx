@@ -27,7 +27,7 @@ export default function DocSlayerHero() {
       ></div>
       
       {/* Content Container */}
-      <div className="max-w-full text-center relative z-10">
+      <div className="max-w-full text-center relative z-10 select-none">
         
         {/* Main Title */}
         <h1 
