@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Menu, X, FileText } from 'lucide-react';
+import { Menu, X, FileText, Star } from 'lucide-react';
 
 // Mock Link component for navigation
 const Link = ({ to, children, className, onClick }) => (
@@ -18,7 +18,6 @@ const Link = ({ to, children, className, onClick }) => (
 
 const Navbar = () => {
   const [activeTab, setActiveTab] = useState('Home');
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigationTabs = [
@@ -55,10 +54,6 @@ const Navbar = () => {
     return () => window.removeEventListener('resetActiveTab', handleResetActiveTab);
   }, []);
 
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -82,8 +77,12 @@ const Navbar = () => {
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
+  const handleGitHubStar = () => {
+    window.open('https://github.com/srivas-saksham/DocSlayer', '_blank');
+  };
+
   return (
-    <nav className="sticky top-0 z-50 bg-primary shadow-md border-b border-gray-100">
+    <nav className="sticky top-0 z-50 bg-primary shadow-md border-b border-gray-100 select-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left - Logo */}
@@ -124,20 +123,24 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Right - Theme Toggle & Generate Button (Desktop) */}
+          {/* Right - GitHub Star & Generate Button (Desktop) */}
           <div className="hidden md:flex items-center space-x-4">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full text-text hover:text-white hover:bg-accent transition-all duration-200"
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-            </button>
+            {/* GitHub Star Button */}
+            <div className="relative group">
+              <button
+                onClick={handleGitHubStar}
+                className="p-2 rounded-full text-text hover:text-yellow-400 transition-all duration-300 transform hover:scale-110 hover:rotate-12"
+                aria-label="Star DocSlayer on GitHub"
+              >
+                <Star className="h-5 w-5 fill-transparent hover:fill-yellow-400 transition-all duration-300" />
+              </button>
+              
+              {/* Tooltip */}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-accent text-primary text-sm font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap shadow-lg">
+                Star DocSlayer on GitHub
+                <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+              </div>
+            </div>
 
             {/* Generate Button */}
             <button 
@@ -150,18 +153,16 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-2">
-            {/* Theme Toggle Mobile */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full text-text hover:text-accent hover:bg-secondary transition-all duration-200"
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-            </button>
+            {/* GitHub Star Mobile */}
+            <div className="relative group">
+              <button
+                onClick={handleGitHubStar}
+                className="p-2 rounded-full text-text hover:text-yellow-400 transition-all duration-300 transform hover:scale-110"
+                aria-label="Star DocSlayer on GitHub"
+              >
+                <Star className="h-5 w-5 fill-transparent hover:fill-yellow-400 transition-all duration-300" />
+              </button>
+            </div>
 
             {/* Hamburger Menu */}
             <button

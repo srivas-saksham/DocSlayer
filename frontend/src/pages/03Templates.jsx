@@ -46,6 +46,11 @@ const TemplatePage = () => {
     }
   ];
 
+  // Scroll to top on component mount
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, ['/template']);
+
   const openPreview = (template) => {
     setSelectedTemplate(template);
     // Small delay to ensure the template is set before starting animation
