@@ -91,7 +91,7 @@ const Navbar = () => {
             className="flex items-center hover:opacity-80 transition-opacity"
             onClick={() => handleTabClick('Home')}
           >
-            <FileText className="h-8 w-8 text-accent mr-2" />
+            <img src="/docslayer_logo_trans.png" alt="" className="h-16 w-auto"/>
             <span className="font-jost font-bold text-2xl text-accent">
               DocSlayer
             </span>

@@ -1,14 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { useEffect } from 'react';
+import RotatingText from '../components/RotatingText.jsx';
 
 export default function DocSlayerHero() {
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+  const [displayText, setDisplayText] = useState('');
+  const [showCursor, setShowCursor] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+
+  const fullText = "DocSlayer";
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, ['/']);
+
+  // Typewriter effect
+  useEffect(() => {
+    let index = 0;
+    const typeInterval = setInterval(() => {
+      if (index < fullText.length) {
+        setDisplayText(fullText.slice(0, index + 1));
+        index++;
+      } else {
+        clearInterval(typeInterval);
+        // Hide cursor after typing is complete
+        setTimeout(() => setShowCursor(false), 500);
+      }
+    }, 150); // Adjust speed here (lower = faster)
+
+    // Cursor blink effect
+    const cursorInterval = setInterval(() => {
+      setShowCursor(prev => !prev);
+    }, 530);
+
+    return () => {
+      clearInterval(typeInterval);
+      clearInterval(cursorInterval);
+    };
+  }, []);
+
+  // Backspace modal handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Backspace' && !e.target.matches('input, textarea, [contenteditable]')) {
+        e.preventDefault();
+        setShowModal(true);
+        setTimeout(() => setShowModal(false), 2700); // Start exit animation 300ms before removal
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleClick = () => {
     setIsClicked(true);
@@ -29,20 +73,38 @@ export default function DocSlayerHero() {
       {/* Content Container */}
       <div className="max-w-full text-center relative z-10 select-none">
         
-        {/* Main Title */}
+        {/* Main Title with Typewriter Effect */}
         <h1 
           className="w-full text-accent text-[20vw] font-bold leading-none"
           style={{ fontFamily: 'Jost, sans-serif'}}
         >
-          DocSlayer
+          {displayText}
+          <span 
+            className={`inline-block w-1 bg-accent ml-1 transition-opacity duration-100 ${
+              showCursor ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{ height: '0.8em', verticalAlign: 'baseline' }}
+          />
         </h1>
         
         {/* Tagline */}
         <h2 
-          className="text-text text-[3vw] font-bold mt-4 tracking-wide"
+          className="text-text text-[3vw] font-bold mt-8 tracking-wide"
           style={{ fontFamily: 'Jost, sans-serif' }}
         >
-          Slaying Code Documenting
+          Slaying{" "}
+          <RotatingText
+            texts={['Code Documenting', 'Assignments', 'Workflows']}
+            mainClassName="text-primary text-[3vw] font-bold tracking-wide bg-accent px-2 rounded-lg inline-flex"
+            staggerFrom="last"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "-120%" }}
+            staggerDuration={0.025}
+            splitLevelClassName="overflow-hidden pb-0.5 sm:pb-1 md:pb-1"
+            transition={{ type: "spring", damping: 30, stiffness: 400 }}
+            rotationInterval={2000}
+          />
         </h2>
         
         {/* Description */}
@@ -79,6 +141,37 @@ export default function DocSlayerHero() {
         </button>
         
       </div>
+
+      {/* Simple Backspace Toast */}
+      {showModal && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-down">
+          <div className="bg-accent text-white px-6 py-3 rounded-lg shadow-lg">
+            <p className="text-sm font-medium">
+              Haha, backspace? That won't Work! lol
+            </p>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes slideUpDown {
+          0% { 
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+          }
+          10%, 90% { 
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+          100% { 
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+          }
+        }
+        .animate-slide-up-down {
+          animation: slideUpDown 3s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }
