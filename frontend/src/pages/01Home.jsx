@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
 import RotatingText from '../components/RotatingText.jsx';
+import DetailsSection from '../components/DetailsSection.jsx';
 
 export default function DocSlayerHero() {
   const [isHovered, setIsHovered] = useState(false);
@@ -8,12 +9,37 @@ export default function DocSlayerHero() {
   const [displayText, setDisplayText] = useState('');
   const [showCursor, setShowCursor] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsSection, setShowDetailsSection] = useState(false);
 
+  const detailsSectionRef = useRef(null);
   const fullText = "DocSlayer";
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, ['/']);
+
+  // Intersection Observer for DetailsSection visibility
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShowDetailsSection(true);
+          // Stop observing once it's visible
+          observer.disconnect();
+        }
+      },
+      { 
+        threshold: 0.1, // Trigger when 10% is visible
+        rootMargin: '0px' // No margin adjustment
+      }
+    );
+
+    if (detailsSectionRef.current) {
+      observer.observe(detailsSectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // Typewriter effect
   useEffect(() => {
@@ -56,6 +82,7 @@ export default function DocSlayerHero() {
 
   const handleClick = () => {
     setIsClicked(true);
+    window.location.href = `/generate`;
   };
 
   return (
@@ -140,6 +167,18 @@ export default function DocSlayerHero() {
           />
         </button>
         
+        {/* DetailsSection with intersection observer */}
+        <div 
+          ref={detailsSectionRef}
+          className={`mt-20 transition-all duration-1000 ease-out ${
+            showDetailsSection 
+              ? 'opacity-100 translate-y-0' 
+              : 'opacity-0 translate-y-8'
+          }`}
+        >
+          <DetailsSection />
+        </div>
+
       </div>
 
       {/* Simple Backspace Toast */}

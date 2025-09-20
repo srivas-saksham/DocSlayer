@@ -91,7 +91,11 @@ const Navbar = () => {
             className="flex items-center hover:opacity-80 transition-opacity"
             onClick={() => handleTabClick('Home')}
           >
-            <img src="/docslayer_logo_trans.png" alt="" className="h-16 w-auto"/>
+            <img src="/docslayer_logo_trans.png" 
+              alt="docslayer logo" 
+              className="h-8 mr-2 w-auto" 
+              draggable="false"
+              onContextMenu={(e) => e.preventDefault()}/>
             <span className="font-jost font-bold text-2xl text-accent">
               DocSlayer
             </span>
