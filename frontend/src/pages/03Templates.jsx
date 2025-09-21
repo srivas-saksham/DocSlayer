@@ -112,7 +112,7 @@ const TemplatePage = () => {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-stone-600">Resume Templates</h1>
+            <h1 className="text-8xl font-bold text-stone-600">Templates</h1>
             
             {/* Layout Filter */}
             <div className="flex items-center gap-2 bg-stone-100 rounded-lg p-1">
@@ -140,7 +140,7 @@ const TemplatePage = () => {
               </button>
             </div>
           </div>
-          <p className="text-stone-500">Choose from our collection of professionally designed templates</p>
+          <p className="ml-4 text-stone-500">Choose from our collection of professionally designed templates</p>
         </div>
       </div>
 

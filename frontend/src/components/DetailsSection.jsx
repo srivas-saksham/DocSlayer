@@ -29,6 +29,8 @@ export default function DetailsSection() {
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
+          setIsPlaying(true);
+          
         }
       },
       { threshold: 0.2 }
@@ -130,7 +132,7 @@ export default function DetailsSection() {
     >
       {/* Subtle dotted pattern overlay */}
       <div 
-        className="absolute inset-0 opacity-20"
+        className="absolute inset-0 opacity-10"
         style={{
           backgroundImage: `radial-gradient(circle, #ffffff 2px, transparent 1px)`,
           backgroundSize: "30px 30px",
