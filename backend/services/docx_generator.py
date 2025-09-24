@@ -58,6 +58,24 @@ def apply_shading(cell, color="D9D9D9"):
     tcPr.append(shd)
 
 
+def apply_cell_borders(cell):
+    """Apply outside borders only to a table cell."""
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcBorders = OxmlElement('w:tcBorders')
+    
+    # Define border style for all four sides
+    for border_name in ['top', 'left', 'bottom', 'right']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'single')
+        border.set(qn('w:sz'), '4')  # Border width
+        border.set(qn('w:space'), '0')
+        border.set(qn('w:color'), '000000')  # Black border
+        tcBorders.append(border)
+    
+    tcPr.append(tcBorders)
+
+
 def set_doc_margins(doc, margin_inch=0.5):
     """Set page margins for all sections."""
     for section in doc.sections:
@@ -185,6 +203,10 @@ def add_credentials(doc, credentials):
         key_cell = table.rows[i].cells[0]
         value_cell = table.rows[i].cells[1]
         
+        # Apply borders to both cells
+        apply_cell_borders(key_cell)
+        apply_cell_borders(value_cell)
+        
         # Set alignment for key cell (center both horizontally and vertically)
         key_paragraph = key_cell.paragraphs[0]
         key_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -249,6 +271,7 @@ def add_index_page(doc, index_fields, num_questions):
     # Add headers
     for i, field in enumerate(enabled_fields):
         cell = table.rows[0].cells[i]
+        apply_cell_borders(cell)  # Add borders to header cells
         paragraph = cell.paragraphs[0]
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER  # Horizontal center
         run = paragraph.add_run(field)
@@ -262,6 +285,7 @@ def add_index_page(doc, index_fields, num_questions):
     for row_idx in range(1, num_questions + 1):
         for col_idx, field in enumerate(enabled_fields):
             cell = table.rows[row_idx].cells[col_idx]
+            apply_cell_borders(cell)  # Add borders to data cells
             paragraph = cell.paragraphs[0]
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER  # Horizontal center for data cells
             
@@ -330,7 +354,7 @@ def add_page_numbering(doc):
 
 
 # -------------------------------
-# Templates (unchanged)
+# Templates with Border Support
 # -------------------------------
 
 def apply_template1(doc, idx, content, file_path, highlight=False):
@@ -347,6 +371,7 @@ def apply_template1(doc, idx, content, file_path, highlight=False):
     # Subheading in shaded cell
     table = doc.add_table(rows=1, cols=1)
     cell = table.rows[0].cells[0]
+    apply_cell_borders(cell)  # Add borders
     run = cell.paragraphs[0].add_run("Source Code")
     apply_font(run, size=14, bold=True)
     apply_shading(cell, "D9D9D9")
@@ -354,6 +379,7 @@ def apply_template1(doc, idx, content, file_path, highlight=False):
     # Code block
     code_table = doc.add_table(rows=1, cols=1)
     code_cell = code_table.rows[0].cells[0]
+    apply_cell_borders(code_cell)  # Add borders
 
     if highlight:
         add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=12)
@@ -363,21 +389,43 @@ def apply_template1(doc, idx, content, file_path, highlight=False):
 
 
 def apply_template2(doc, idx, content, file_path, highlight=False):
-    """Template 2: Left-aligned heading, inline code style."""
+    """Template 2: Left-aligned heading with one empty line, Source Code label with character shading, code in table."""
     if idx > 1:
         doc.add_page_break()
 
-    heading = doc.add_paragraph(f"Q-{idx}")
-    heading.alignment = 0  # left
+    # Heading: "Question {idx}" - Bold, default size (~14px), left-aligned
+    heading = doc.add_paragraph(f"Question {idx}")
+    heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
     run = heading.runs[0]
     apply_font(run, size=14, bold=True)
-
+    
+    # Add exactly one empty line after heading
+    doc.add_paragraph()
+    
+    # Source Code Label with character shading (not table shading)
+    source_label_para = doc.add_paragraph()
+    source_run = source_label_para.add_run("Source Code")
+    apply_font(source_run, size=16, bold=False)  # 16px, not bold
+    
+    # Apply character shading using OxmlElement
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), "D9D9D9")  # Light gray background
+    source_run._r.get_or_add_rPr().append(shd)
+    
+    # Code block in 1x1 table - no extra blank lines
+    code_table = doc.add_table(rows=1, cols=1)
+    code_cell = code_table.rows[0].cells[0]
+    apply_cell_borders(code_cell)  # Add borders
+    
     if highlight:
-        add_syntax_highlighted_code(doc, content, file_path, font_size=11)
+        add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=12)
     else:
-        code_para = doc.add_paragraph()
-        run = code_para.add_run(content)
-        apply_font(run, size=11)
+        # Clear the default paragraph and add code with proper formatting
+        code_cell.paragraphs[0].clear()
+        run = code_cell.paragraphs[0].add_run(content)
+        apply_font(run, size=12, bold=False, font_name="Consolas")
 
 
 def apply_template3(doc, idx, content, file_path, highlight=False):
@@ -396,10 +444,6 @@ def apply_template3(doc, idx, content, file_path, highlight=False):
         run = code_para.add_run(content)
         apply_font(run, size=11)
 
-
-# -------------------------------
-# New Templates
-# -------------------------------
 
 def apply_template4(doc, idx, content, file_path, highlight=False):
     """Template 4: Academic/lab report style with formal structure."""
@@ -435,6 +479,7 @@ def apply_template4(doc, idx, content, file_path, highlight=False):
     # Source Code subheading in shaded cell
     table = doc.add_table(rows=1, cols=1)
     cell = table.rows[0].cells[0]
+    apply_cell_borders(cell)  # Add borders
     run = cell.paragraphs[0].add_run("Source Code")
     apply_font(run, size=14, bold=True, font_name="Times New Roman")
     apply_shading(cell, "D9D9D9")
@@ -442,6 +487,7 @@ def apply_template4(doc, idx, content, file_path, highlight=False):
     # Code block in table cell
     code_table = doc.add_table(rows=1, cols=1)
     code_cell = code_table.rows[0].cells[0]
+    apply_cell_borders(code_cell)  # Add borders
 
     if highlight:
         add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=10)
@@ -467,6 +513,7 @@ def apply_template5(doc, idx, content, file_path, highlight=False):
     # Decorative border around entire question (outer table)
     border_table = doc.add_table(rows=1, cols=1)
     border_cell = border_table.rows[0].cells[0]
+    apply_cell_borders(border_cell)  # Add borders
     
     # Alternate background shading for each question block
     if idx % 2 == 0:
@@ -490,6 +537,7 @@ def apply_template5(doc, idx, content, file_path, highlight=False):
     # Subheading in shaded cell (sky blue background)
     sub_table = border_cell.add_table(rows=1, cols=1)
     sub_cell = sub_table.rows[0].cells[0]
+    apply_cell_borders(sub_cell)  # Add borders
     run = sub_cell.paragraphs[0].add_run("✨ Source Code ✨")
     apply_font(run, size=14, bold=True, font_name="Segoe UI")
     apply_shading(sub_cell, "E6F7FF")  # Light sky blue
@@ -497,6 +545,7 @@ def apply_template5(doc, idx, content, file_path, highlight=False):
     # Code block with light yellow background
     code_table = border_cell.add_table(rows=1, cols=1)
     code_cell = code_table.rows[0].cells[0]
+    apply_cell_borders(code_cell)  # Add borders
     apply_shading(code_cell, "FFF9E6")  # Light yellow
 
     if highlight:
