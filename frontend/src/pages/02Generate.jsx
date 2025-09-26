@@ -28,13 +28,13 @@ export default function DocGeneratorPage() {
   });
   const [pageNumbering, setPageNumbering] = useState(false);
   const [aiExplanations, setAiExplanations] = useState(false);
-  const [includeCodeOutputs, setIncludeCodeOutputs] = useState(false);
+  const [includeCodeOutputs, setIncludeCodeOutputs] = useState(true);
 
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null); 
 
-  const [fakeProgress, setFakeProgress] = useState(true);
   const [currentQuote, setCurrentQuote] = useState('');
+  const [currentPollInterval, setCurrentPollInterval] = useState(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [showDebugControls, setShowDebugControls] = useState(process.env.NODE_ENV === 'development');
 
@@ -120,32 +120,50 @@ export default function DocGeneratorPage() {
   };
 }, [isComplete, generatedFileUrl, isDownloading]); // Add isDownloading to dependencies
 
+  // Cleanup polling interval when component unmounts
   useEffect(() => {
-    let quoteInterval;
-    if (isGenerating) {
-      // Set random initial quote
-      const randomIndex = Math.floor(Math.random() * funQuotes.length);
-      setCurrentQuote(funQuotes[randomIndex]);
-      setQuoteIndex(randomIndex);
-      
-      // Rotate quotes every 5 seconds with random selection
-      quoteInterval = setInterval(() => {
-        setQuoteIndex(prev => {
-          let nextIndex;
-          do {
-            nextIndex = Math.floor(Math.random() * funQuotes.length);
-          } while (nextIndex === prev && funQuotes.length > 1); // Avoid showing same quote twice in a row
-          
-          setCurrentQuote(funQuotes[nextIndex]);
-          return nextIndex;
-        });
-      }, 5000);
-    }
-
     return () => {
-      if (quoteInterval) clearInterval(quoteInterval);
+      if (currentPollInterval) {
+        clearInterval(currentPollInterval);
+      }
     };
-  }, [isGenerating]);
+  }, [currentPollInterval]);
+
+  //Fake progress
+  //Fixed fake progress effect
+useEffect(() => {
+  let progressInterval;
+  
+  // Only run fake progress if:
+  // 1. Document is being generated
+  // 2. AI outputs (includeCodeOutputs) is disabled
+  // 3. No real polling interval is active
+  if (isGenerating && !includeCodeOutputs && !currentPollInterval) {
+    console.log("[FAKE PROGRESS] Starting fake progress (AI outputs disabled)");
+    
+    progressInterval = setInterval(() => {
+      setProgress(prev => {
+        const increment = Math.random() * 8 + 2;
+        const newProgress = Math.min(prev + increment, 95); // Stop at 95%
+        
+        // Update quotes more frequently for fake progress
+        if (Math.random() < 0.3) {
+          const randomQuote = funQuotes[Math.floor(Math.random() * funQuotes.length)];
+          setCurrentQuote(randomQuote);
+        }
+        
+        return newProgress;
+      });
+    }, 1200);
+  }
+
+  return () => {
+    if (progressInterval) {
+      console.log("[FAKE PROGRESS] Cleaning up fake progress interval");
+      clearInterval(progressInterval);
+    }
+  };
+}, [isGenerating, includeCodeOutputs, currentPollInterval]);
 
   // Parse URL parameters and auto-select template
   useEffect(() => {
@@ -272,6 +290,82 @@ export default function DocGeneratorPage() {
     "Transforming panic-written code into poetry...",
     "Adding some dignity to your variable names..."
   ];
+
+  // Real-time job progress polling function
+  const pollJobProgress = (jobId) => {
+    console.log(`[POLLING] Starting progress polling for job: ${jobId}`);
+    setProgress(10);
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/documents/progress/${jobId}`);
+        
+        if (!response.ok) {
+          console.error(`[POLLING ERROR] HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`Failed to fetch job progress: ${response.status}`);
+        }
+        
+        const jobData = await response.json();
+        console.log(`[POLLING] Job ${jobId} progress:`, jobData);
+        
+        // Update progress state with real backend progress
+        const currentProgress = jobData.progress || 0;
+        setProgress(currentProgress);
+        
+        // Update message based on backend status
+        if (jobData.message) {
+          console.log(`[POLLING] Setting quote: ${jobData.message}`);
+          setCurrentQuote(jobData.message);
+        }
+        
+        // Handle completion
+        if (jobData.status === 'done') {
+          console.log(`[POLLING] Job ${jobId} completed successfully`);
+          clearInterval(interval);
+          setCurrentPollInterval(null);
+          setProgress(100);
+          setIsGenerating(false);
+          setIsComplete(true);
+          
+          // Set download URL from backend response
+          if (jobData.output_path) {
+            const downloadUrl = `http://localhost:8000${jobData.output_path}`;
+            console.log(`[POLLING] Setting download URL: ${downloadUrl}`);
+            setGeneratedFileUrl(downloadUrl);
+            
+            // Create preview container for DOCX
+            try {
+              const downloadResponse = await fetch(downloadUrl);
+              if (downloadResponse.ok) {
+                const blob = await downloadResponse.blob();
+                const container = await previewDocx(blob);
+                setPreviewContainer(container);
+              }
+            } catch (previewError) {
+              console.error('Error creating preview:', previewError);
+            }
+          }
+        }
+        
+        // Handle errors
+        if (jobData.status === 'error') {
+          console.error(`[POLLING] Job ${jobId} failed:`, jobData.error || jobData.message);
+          clearInterval(interval);
+          setCurrentPollInterval(null);
+          setIsGenerating(false);
+          alert(`Generation failed: ${jobData.message || jobData.error}`);
+          setProgress(0);
+        }
+        
+      } catch (error) {
+        console.error(`[POLLING ERROR] Job ${jobId}:`, error);
+        // Don't clear interval immediately on network errors, retry a few times
+        // You might want to add retry logic here
+      }
+    }, 1000); // Poll every second
+    
+    return interval;
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -478,100 +572,154 @@ export default function DocGeneratorPage() {
     }
   };
 
-  const generateDocs = async () => {
-    if (!selectedTemplateId) {
-      alert('Please select a template first.');
-      return;
-    }
+const generateDocs = async () => {
+  if (!selectedTemplateId) {
+    alert('Please select a template first.');
+    return;
+  }
 
-    if (uploadedFiles.length === 0) {
-      alert('Please upload at least one file.');
-      return;
-    }
+  if (uploadedFiles.length === 0) {
+    alert('Please upload at least one file.');
+    return;
+  }
 
-    setIsGenerating(true);
-    setProgress(0);
+  // Clear any existing polling interval
+  if (currentPollInterval) {
+    clearInterval(currentPollInterval);
+    setCurrentPollInterval(null);
+  }
 
-    const minDuration = fakeProgress ? 7000 : 1000; // 7 seconds minimum if fake progress enabled
-    const startTime = Date.now();
+  setIsGenerating(true);
+  setProgress(0);
+  setIsComplete(false);
+  setCurrentQuote('Starting document generation...');
 
-    // Simulate progress updates
-    const progressInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const naturalProgress = Math.min((elapsed / minDuration) * 95, 95);
-      setProgress(naturalProgress);
-    }, 100);
+  const formData = new FormData();
+  formData.append("template", selectedTemplateId);
+  formData.append("syntax_highlight", syntaxHighlighting ? "true" : "false");
+  formData.append("index_auto_generation", indexAutoGeneration ? "true" : "false");
+  formData.append("page_numbering", pageNumbering ? "true" : "false");
+  formData.append("enable_ai_execution", includeCodeOutputs ? "true" : "false");
 
-    const formData = new FormData();
-    formData.append("template", selectedTemplateId);
-    formData.append("syntax_highlight", syntaxHighlighting ? "true" : "false");
-    formData.append("index_auto_generation", indexAutoGeneration ? "true" : "false");
-    formData.append("page_numbering", pageNumbering ? "true" : "false");
+  // Index fields
+  if (indexAutoGeneration) {
+    formData.append("index_fields", JSON.stringify(indexFields));
+  }
 
-    // Index fields
-    if (indexAutoGeneration) {
-      formData.append("index_fields", JSON.stringify(indexFields));
-    }
+  if (includeCredentials) {
+    formData.append("include_credentials", "true");
+    Object.entries(credentials).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+  } else {
+    formData.append("include_credentials", "false");
+  }
+  
+  uploadedFiles.forEach((fileObj) => {
+    formData.append("files", fileObj.file);
+  });
 
-    if (includeCredentials) {
-      formData.append("include_credentials", "true");
-      Object.entries(credentials).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-    } else {
-      formData.append("include_credentials", "false");
-    }
+  try {
+    console.log("[GENERATE] Starting background job...");
+    console.log(`[GENERATE] AI execution enabled: ${includeCodeOutputs}`);
     
-    uploadedFiles.forEach((fileObj) => {
-      formData.append("files", fileObj.file);
+    // Step 1: Start background job
+    const generateResponse = await fetch("http://localhost:8000/documents/generate", {
+      method: "POST",
+      body: formData,
     });
 
-    try {
-      console.log("Sending files to backend...");
-      const response = await fetch("http://localhost:8000/documents/generate", {
-        method: "POST",
-        body: formData,
-      });
-      console.log("Received response:", response);
-
-      if (!response.ok) {
-        throw new Error("Failed to generate document");
-      }
-
-      // Get DOCX blob
-      const blob = await response.blob();
-      
-      // Ensure minimum duration has passed
-      const elapsed = Date.now() - startTime;
-      const remainingTime = Math.max(0, minDuration - elapsed);
-      
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-      }
-      
-      clearInterval(progressInterval);
-      
-      // Complete the progress
-      setProgress(100);
-      
-      const url = window.URL.createObjectURL(blob);
-
-      // Save DOCX URL for download
-      setGeneratedFileUrl(url);
-
-      // Create preview container for DOCX
-      const container = await previewDocx(blob);
-      setPreviewContainer(container);
-
-      setIsGenerating(false);
-      setIsComplete(true);
-    } catch (err) {
-      clearInterval(progressInterval);
-      console.error(err);
-      alert("Error generating document");
-      setIsGenerating(false);
-      setProgress(0);
+    if (!generateResponse.ok) {
+      const errorText = await generateResponse.text();
+      console.error("[GENERATE ERROR]", errorText);
+      throw new Error(`Failed to start document generation: ${generateResponse.status}`);
     }
+
+    const result = await generateResponse.json();
+    console.log("[GENERATE] Job started:", result);
+
+    // Step 2: Handle progress based on AI execution setting
+    if (includeCodeOutputs && result.jobId) {
+      // Use real-time polling for AI execution
+      console.log(`[GENERATE] Starting real polling for job: ${result.jobId}`);
+      const pollInterval = pollJobProgress(result.jobId);
+      setCurrentPollInterval(pollInterval);
+    } else if (!includeCodeOutputs && result.jobId) {
+      // Use fake progress + final polling for non-AI execution
+      console.log(`[GENERATE] Using fake progress with final polling for job: ${result.jobId}`);
+      
+      // Set up a single check after estimated completion time
+      setTimeout(async () => {
+        try {
+          console.log(`[GENERATE] Checking job completion for: ${result.jobId}`);
+          const response = await fetch(`http://localhost:8000/documents/progress/${result.jobId}`);
+          
+          if (response.ok) {
+            const jobData = await response.json();
+            
+            if (jobData.status === 'done') {
+              console.log(`[GENERATE] Job completed: ${result.jobId}`);
+              setProgress(100);
+              setIsGenerating(false);
+              setIsComplete(true);
+              setCurrentQuote("Document generation completed!");
+              
+              if (jobData.output_path) {
+                const downloadUrl = `http://localhost:8000${jobData.output_path}`;
+                setGeneratedFileUrl(downloadUrl);
+                
+                // Create preview
+                try {
+                  const downloadResponse = await fetch(downloadUrl);
+                  if (downloadResponse.ok) {
+                    const blob = await downloadResponse.blob();
+                    const container = await previewDocx(blob);
+                    setPreviewContainer(container);
+                  }
+                } catch (previewError) {
+                  console.error('Error creating preview:', previewError);
+                }
+              }
+            } else if (jobData.status === 'error') {
+              console.error(`[GENERATE] Job failed: ${result.jobId}`, jobData.error);
+              setIsGenerating(false);
+              setProgress(0);
+              alert(`Generation failed: ${jobData.message || jobData.error}`);
+            } else {
+              // Job still running, start real polling
+              console.log(`[GENERATE] Job still running, starting polling: ${result.jobId}`);
+              const pollInterval = pollJobProgress(result.jobId);
+              setCurrentPollInterval(pollInterval);
+            }
+          }
+        } catch (error) {
+          console.error(`[GENERATE] Error checking job completion:`, error);
+          // Fallback to polling
+          const pollInterval = pollJobProgress(result.jobId);
+          setCurrentPollInterval(pollInterval);
+        }
+      }, 8000); // Check after 8 seconds for non-AI jobs
+    } else {
+      throw new Error("No job ID returned from server");
+    }
+    
+  } catch (err) {
+    console.error("[GENERATE ERROR]", err);
+    alert("Error generating document: " + err.message);
+    setIsGenerating(false);
+    setProgress(0);
+    setCurrentQuote('');
+  }
+};
+
+  // Get progress message based on current progress
+  const getProgressMessage = (progress) => {
+    if (progress < 10) return "Uploading and validating files...";
+    if (progress < 20) return "Starting document generation...";
+    if (progress < 60) return "AI processing and code execution...";
+    if (progress < 80) return "Generating DOCX document...";
+    if (progress < 100) return "Finalizing document...";
+    return "Document generation completed!";
   };
 
   const downloadDocs = () => {
@@ -932,6 +1080,12 @@ export default function DocGeneratorPage() {
                   </h3>
                   
                   <ToggleSwitch
+                    enabled={includeCodeOutputs}
+                    onChange={setIncludeCodeOutputs}
+                    label="Include Code Outputs"
+                  />
+
+                  <ToggleSwitch
                     enabled={syntaxHighlighting}
                     onChange={setSyntaxHighlighting}
                     label="Enable Syntax Highlighting"
@@ -1019,16 +1173,6 @@ export default function DocGeneratorPage() {
                     
                     {/* Coming Soon Section */}
                     <div className="space-y-4">
-                      <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
-                        <div className="flex items-center justify-between opacity-60">
-                          <span className="text-text font-jost font-medium">Include Code Outputs</span>
-                          <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 cursor-not-allowed">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-1" />
-                          </div>
-                        </div>
-                        <p className="text-xs text-accent font-jost mt-2 font-medium">Coming Soon</p>
-                      </div>
-                      
                       <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
                         <div className="flex items-center justify-between opacity-60">
                           <span className="text-text font-jost font-medium">AI Explanations/Summaries</span>
@@ -1183,69 +1327,80 @@ export default function DocGeneratorPage() {
                 </div>
 
                 {/* Enhanced Progress Bar */}
-        <div className="space-y-4">
-          <div className="relative">
-            <div className="w-full bg-primary rounded-full h-4 overflow-hidden border border-accent/20 shadow-inner">
-              <div 
-                className="h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-500 ease-out rounded-full relative overflow-hidden"
-                style={{ width: `${progress}%` }}
-              >
-                {/* Shimmer effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-              </div>
-            </div>
-            
-            {/* Progress percentage with animation */}
-            <div className="absolute right-0 -top-8">
-              <span className="bg-accent text-primary text-xs font-bold px-2 py-1 rounded-full font-jost animate-bounce">
-                {Math.round(progress)}%
-              </span>
-            </div>
-          </div>
-          
-          {/* Progress details */}
-          <div className="flex justify-between items-center text-sm text-text font-jost">
-            <span className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
-              Processing {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}
-            </span>
-            <span className="text-accent/70">
-              {progress < 30 && "Analyzing code structure..."}
-              {progress >= 30 && progress < 60 && "Generating documentation..."}
-              {progress >= 60 && progress < 90 && "Applying template styling..."}
-              {progress >= 90 && "Finalizing document..."}
-            </span>
-          </div>
-        </div>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <div className="w-full bg-primary rounded-full h-4 overflow-hidden border border-accent/20 shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-500 ease-out rounded-full relative overflow-hidden"
+                        style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                      >
+                        {/* Shimmer effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress percentage with animation */}
+                    <div className="absolute right-0 -top-8">
+                      <span className="bg-accent text-primary text-xs font-bold px-2 py-1 rounded-full font-jost animate-bounce">
+                        {Math.round(progress)}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Progress details */}
+                  <div className="flex justify-between items-center text-sm text-text font-jost">
+                    <span className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
+                      Processing {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-accent/70">
+                      {progress < 30 && "Analyzing code structure..."}
+                      {progress >= 30 && progress < 60 && "Generating documentation..."}
+                      {progress >= 60 && progress < 90 && "Applying template styling..."}
+                      {currentQuote || getProgressMessage(progress)}
+                    </span>
+                  </div>
+                </div>
 
-        {/* Debug Controls (Development Only) */}
-        {showDebugControls && (
-          <div className="mt-6 pt-4 border-t border-accent/20">
-            <div className="flex items-center justify-center gap-4">
-              <span className="text-xs text-text font-jost opacity-60">DEV CONTROLS:</span>
-              <button
-                onClick={() => setFakeProgress(!fakeProgress)}
-                className={`text-xs px-3 py-1 rounded-full font-jost font-semibold transition-all duration-200 ${
-                  fakeProgress 
-                    ? 'bg-accent text-white' 
-                    : 'bg-accent/10 text-accent hover:bg-accent/20'
-                }`}
-              >
-                Fake Progress: {fakeProgress ? 'ON' : 'OFF'}
-              </button>
-              <button
-                onClick={() => setShowDebugControls(false)}
-                className="text-xs text-text/50 hover:text-text transition-colors"
-              >
-                Hide
-              </button>
+                {/* Debug Controls (Development Only) */}
+                
+                  {showDebugControls && (
+                  <div className="mt-6 pt-4 border-t border-accent/20">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center gap-4">
+                        <span className="text-xs text-text font-jost opacity-60">DEV CONTROLS:</span>
+                        
+                        <div className="text-xs px-3 py-1 rounded-full bg-accent/10 text-accent">
+                          Progress Mode: {includeCodeOutputs ? 'Real-time Polling' : 'Fake Progress'}
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            if (currentPollInterval) {
+                              clearInterval(currentPollInterval);
+                              setCurrentPollInterval(null);
+                              setIsGenerating(false);
+                            }
+                          }}
+                          className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-all duration-200"
+                        >
+                          Stop Generation
+                        </button>
+                      </div>
+                      
+                      <button
+                        onClick={() => setShowDebugControls(false)}
+                        className="text-xs text-text/50 hover:text-text transition-colors"
+                      >
+                        Hide Controls
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
-      </div>
-    </div>
-  </div>
-)}
 
         {/* Result Section */}
         {isComplete && (
@@ -1359,6 +1514,9 @@ export default function DocGeneratorPage() {
                     </h3>
                     <p className="text-sm text-text font-jost mt-1">
                       Generated from {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-sm text-text font-jost mt-1">
+                      <strong>Note:</strong> The preview might slightly be different from the actual file.  
                     </p>
                     {pageNumbering && (
                       <div className="mt-2 flex items-center gap-2 rounded-md bg-yellow-100 px-2 py-1">

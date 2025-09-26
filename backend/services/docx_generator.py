@@ -357,8 +357,10 @@ def add_page_numbering(doc):
 # Templates with Border Support
 # -------------------------------
 
-def apply_template1(doc, idx, content, file_path, highlight=False):
-    """Template 1: Question heading, shaded 'Source Code', code block."""
+# Example of how to modify apply_template1 in docx_generator.py
+
+def apply_template1(doc, idx, content, file_path, highlight=False, ai_output=None):
+    """Template 1: Question heading, shaded 'Source Code', code block, then output if available."""
     if idx > 1:
         doc.add_page_break()
 
@@ -368,10 +370,11 @@ def apply_template1(doc, idx, content, file_path, highlight=False):
     run = heading.runs[0]
     apply_font(run, size=16, bold=True)
 
+    # Source Code Section
     # Subheading in shaded cell
     table = doc.add_table(rows=1, cols=1)
     cell = table.rows[0].cells[0]
-    apply_cell_borders(cell)  # Add borders
+    apply_cell_borders(cell)
     run = cell.paragraphs[0].add_run("Source Code")
     apply_font(run, size=14, bold=True)
     apply_shading(cell, "D9D9D9")
@@ -379,7 +382,7 @@ def apply_template1(doc, idx, content, file_path, highlight=False):
     # Code block
     code_table = doc.add_table(rows=1, cols=1)
     code_cell = code_table.rows[0].cells[0]
-    apply_cell_borders(code_cell)  # Add borders
+    apply_cell_borders(code_cell)
 
     if highlight:
         add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=12)
@@ -387,8 +390,30 @@ def apply_template1(doc, idx, content, file_path, highlight=False):
         run = code_cell.paragraphs[0].add_run(content)
         apply_font(run, size=12)
 
+    # AI Output Section (NEW - only if ai_output is provided)
+    if ai_output:
+        # Add some spacing between source and output
+        doc.add_paragraph()
+        
+        # Output subheading in shaded cell
+        output_table = doc.add_table(rows=1, cols=1)
+        output_cell = output_table.rows[0].cells[0]
+        apply_cell_borders(output_cell)
+        run = output_cell.paragraphs[0].add_run("Output")
+        apply_font(run, size=14, bold=True)
+        apply_shading(output_cell, "D9D9D9")
 
-def apply_template2(doc, idx, content, file_path, highlight=False):
+        # Output content block
+        output_content_table = doc.add_table(rows=1, cols=1)
+        output_content_cell = output_content_table.rows[0].cells[0]
+        apply_cell_borders(output_content_cell)
+
+        # Add the AI output as plain text (it's just a string)
+        run = output_content_cell.paragraphs[0].add_run(ai_output)
+        apply_font(run, size=11, font_name="Consolas")
+
+
+def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=None):
     """Template 2: Left-aligned heading with one empty line, Source Code label with character shading, code in table."""
     if idx > 1:
         doc.add_page_break()
@@ -428,7 +453,7 @@ def apply_template2(doc, idx, content, file_path, highlight=False):
         apply_font(run, size=12, bold=False, font_name="Consolas")
 
 
-def apply_template3(doc, idx, content, file_path, highlight=False):
+def apply_template3(doc, idx, content, file_path, highlight=False, ai_output=None):
     """Template 3: Minimalist style (Problem + code)."""
     if idx > 1:
         doc.add_page_break()
@@ -445,7 +470,7 @@ def apply_template3(doc, idx, content, file_path, highlight=False):
         apply_font(run, size=11)
 
 
-def apply_template4(doc, idx, content, file_path, highlight=False):
+def apply_template4(doc, idx, content, file_path, highlight=False, ai_output=None):
     """Template 4: Academic/lab report style with formal structure."""
     if idx > 1:
         doc.add_page_break()
@@ -505,7 +530,7 @@ def apply_template4(doc, idx, content, file_path, highlight=False):
     apply_font(sig_run, size=11, font_name="Times New Roman")
 
 
-def apply_template5(doc, idx, content, file_path, highlight=False):
+def apply_template5(doc, idx, content, file_path, highlight=False, ai_output=None):
     """Template 5: Creative colorful style with fun presentation elements."""
     if idx > 1:
         doc.add_page_break()
@@ -566,7 +591,7 @@ def apply_template5(doc, idx, content, file_path, highlight=False):
 def generate_docx(files: list, template: str, output_path: str, syntax_highlight=False, 
                   include_credentials=False, credentials=None, 
                   index_auto_generation=False, index_fields=None,
-                  page_numbering=False):
+                  page_numbering=False, ai_outputs=None):
     """
     Generate a DOCX document using a chosen template with optional global features.
     - files: list of file paths to include
@@ -598,19 +623,22 @@ def generate_docx(files: list, template: str, output_path: str, syntax_highlight
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
+        # Get AI output if available
+        ai_output = ai_outputs.get(file_path) if ai_outputs else None
+    
         if template == "template1":
-            apply_template1(doc, idx, content, file_path, syntax_highlight)
+            apply_template1(doc, idx, content, file_path, syntax_highlight, ai_output)
         elif template == "template2":
-            apply_template2(doc, idx, content, file_path, syntax_highlight)
+            apply_template2(doc, idx, content, file_path, syntax_highlight, ai_output)
         elif template == "template3":
-            apply_template3(doc, idx, content, file_path, syntax_highlight)
+            apply_template3(doc, idx, content, file_path, syntax_highlight, ai_output)
         elif template == "template4":
-            apply_template4(doc, idx, content, file_path, syntax_highlight)
+            apply_template4(doc, idx, content, file_path, syntax_highlight, ai_output)
         elif template == "template5":
-            apply_template5(doc, idx, content, file_path, syntax_highlight)
+            apply_template5(doc, idx, content, file_path, syntax_highlight, ai_output)
         else:
             # Fallback → template1
-            apply_template1(doc, idx, content, file_path, syntax_highlight)
+            apply_template1(doc, idx, content, file_path, syntax_highlight, ai_output)
 
     # Add page numbering if enabled (must be done after all content is added)
     if page_numbering:
