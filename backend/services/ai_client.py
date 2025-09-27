@@ -72,8 +72,22 @@ Rules:
 - Do not add explanations, comments, or formatting
 - Do not use markdown, code blocks, or backticks
 - Simulate a deterministic execution (use consistent random seeds if needed)
-- Assume no external input unless provided in the code
-- Return plain text output only"""
+- Return plain text output only
+
+INPUT HANDLING:
+- When the code uses input() or similar input functions, automatically provide reasonable sample values
+- For numeric inputs: use values like 10, 5, 8, 15, 7, 12 (avoid 0 to prevent division errors)
+- For string inputs: use sample names like "John", "Alice", "Test"
+- Show what input was provided in the format: "Enter number: 12" (showing the prompt and the value you chose)
+- Choose inputs that will demonstrate the program's functionality well
+- For multiple inputs, use different values each time
+
+Examples:
+- input("Enter first number: ") → show "Enter first number: 12" and use 12
+- input("Enter terms: ") → show "Enter terms: 8" and use 8
+- input("Enter name: ") → show "Enter name: John" and use "John"
+
+Execute the program as if a user provided these sample inputs."""
 
     return [
         {"role": "system", "content": system_prompt},
@@ -165,7 +179,7 @@ def make_api_request(messages: List[Dict[str, str]], config: Dict[str, str]) -> 
         "model": config["model"],
         "messages": messages,
         "temperature": 0.1,  # Low temperature for consistent execution simulation
-        "max_tokens": 500,
+        "max_tokens": 100,
         "top_p": 0.9
     }
     

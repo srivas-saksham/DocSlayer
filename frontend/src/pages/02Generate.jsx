@@ -35,8 +35,6 @@ export default function DocGeneratorPage() {
 
   const [currentQuote, setCurrentQuote] = useState('');
   const [currentPollInterval, setCurrentPollInterval] = useState(null);
-  const [quoteIndex, setQuoteIndex] = useState(0);
-  const [showDebugControls, setShowDebugControls] = useState(process.env.NODE_ENV === 'development');
 
   // Add a flag to track download state
   const [isDownloading, setIsDownloading] = useState(false);
@@ -129,42 +127,6 @@ export default function DocGeneratorPage() {
     };
   }, [currentPollInterval]);
 
-  //Fake progress
-  //Fixed fake progress effect
-useEffect(() => {
-  let progressInterval;
-  
-  // Only run fake progress if:
-  // 1. Document is being generated
-  // 2. AI outputs (includeCodeOutputs) is disabled
-  // 3. No real polling interval is active
-  if (isGenerating && !includeCodeOutputs && !currentPollInterval) {
-    console.log("[FAKE PROGRESS] Starting fake progress (AI outputs disabled)");
-    
-    progressInterval = setInterval(() => {
-      setProgress(prev => {
-        const increment = Math.random() * 8 + 2;
-        const newProgress = Math.min(prev + increment, 95); // Stop at 95%
-        
-        // Update quotes more frequently for fake progress
-        if (Math.random() < 0.3) {
-          const randomQuote = funQuotes[Math.floor(Math.random() * funQuotes.length)];
-          setCurrentQuote(randomQuote);
-        }
-        
-        return newProgress;
-      });
-    }, 1200);
-  }
-
-  return () => {
-    if (progressInterval) {
-      console.log("[FAKE PROGRESS] Cleaning up fake progress interval");
-      clearInterval(progressInterval);
-    }
-  };
-}, [isGenerating, includeCodeOutputs, currentPollInterval]);
-
   // Parse URL parameters and auto-select template
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -181,6 +143,11 @@ useEffect(() => {
       }
     }
   }, []);
+
+  // In your component, add this useEffect to monitor progress changes
+  useEffect(() => {
+    console.log(`[PROGRESS UPDATE] Progress changed to: ${progress}%`);
+  }, [progress]);
 
   const templates = [
     {
@@ -274,98 +241,116 @@ useEffect(() => {
     return Object.values(supportedFormats).flat().map(format => format.ext);
   };
 
-  const funQuotes = [
-    "Converting your spaghetti code into fine dining...",
-    "Teaching your variables some manners...",
-    "Convincing your functions to work together...",
-    "Adding some style to your semicolons...",
-    "Making your code less embarrassing to show mom...",
-    "Translating developer tears into documentation...",
-    "Turning your midnight coding sessions into art...",
-    "Making your code comments actually useful...",
-    "Organizing your chaos into beautiful chaos...",
-    "Adding professional makeup to your code...",
-    "Converting coffee into documentation magic...",
-    "Making your professor proud (finally)...",
-    "Transforming panic-written code into poetry...",
-    "Adding some dignity to your variable names..."
-  ];
-
-  // Real-time job progress polling function
-  const pollJobProgress = (jobId) => {
-    console.log(`[POLLING] Starting progress polling for job: ${jobId}`);
-    setProgress(10);
-
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`http://localhost:8000/documents/progress/${jobId}`);
-        
-        if (!response.ok) {
-          console.error(`[POLLING ERROR] HTTP ${response.status}: ${response.statusText}`);
-          throw new Error(`Failed to fetch job progress: ${response.status}`);
-        }
-        
-        const jobData = await response.json();
-        console.log(`[POLLING] Job ${jobId} progress:`, jobData);
-        
-        // Update progress state with real backend progress
-        const currentProgress = jobData.progress || 0;
-        setProgress(currentProgress);
-        
-        // Update message based on backend status
-        if (jobData.message) {
-          console.log(`[POLLING] Setting quote: ${jobData.message}`);
-          setCurrentQuote(jobData.message);
-        }
-        
-        // Handle completion
-        if (jobData.status === 'done') {
-          console.log(`[POLLING] Job ${jobId} completed successfully`);
-          clearInterval(interval);
-          setCurrentPollInterval(null);
-          setProgress(100);
-          setIsGenerating(false);
-          setIsComplete(true);
-          
-          // Set download URL from backend response
-          if (jobData.output_path) {
-            const downloadUrl = `http://localhost:8000${jobData.output_path}`;
-            console.log(`[POLLING] Setting download URL: ${downloadUrl}`);
-            setGeneratedFileUrl(downloadUrl);
-            
-            // Create preview container for DOCX
-            try {
-              const downloadResponse = await fetch(downloadUrl);
-              if (downloadResponse.ok) {
-                const blob = await downloadResponse.blob();
-                const container = await previewDocx(blob);
-                setPreviewContainer(container);
-              }
-            } catch (previewError) {
-              console.error('Error creating preview:', previewError);
-            }
-          }
-        }
-        
-        // Handle errors
-        if (jobData.status === 'error') {
-          console.error(`[POLLING] Job ${jobId} failed:`, jobData.error || jobData.message);
-          clearInterval(interval);
-          setCurrentPollInterval(null);
-          setIsGenerating(false);
-          alert(`Generation failed: ${jobData.message || jobData.error}`);
-          setProgress(0);
-        }
-        
-      } catch (error) {
-        console.error(`[POLLING ERROR] Job ${jobId}:`, error);
-        // Don't clear interval immediately on network errors, retry a few times
-        // You might want to add retry logic here
-      }
-    }, 1000); // Poll every second
+// Real-time job progress polling function
+const pollJobProgress = async (jobId) => {
+  console.log(`[POLLING] Starting progress polling for job: ${jobId}`);
+  
+  let interval = null;
+  let hasCompleted = false;
+  
+  const fetchProgress = async () => {
+    if (hasCompleted) {
+      console.log(`[POLLING] Skipping - Job ${jobId} already completed`);
+      return;
+    }
     
-    return interval;
+    try {
+      const response = await fetch(`http://localhost:8000/documents/progress/${jobId}`);
+      
+      if (!response.ok) {
+        console.error(`[POLLING ERROR] HTTP ${response.status}: ${response.statusText}`);
+        return;
+      }
+      
+      const jobData = await response.json();
+      console.log(`[POLLING] Job ${jobId} progress: ${jobData.progress}%, status: ${jobData.status}`);
+      
+      // Update progress and message
+      setProgress(jobData.progress || 0);
+      if (jobData.message) {
+        setCurrentQuote(jobData.message);
+      }
+      
+      // Handle completion
+      if (!hasCompleted && (jobData.status === 'done' || (jobData.progress && jobData.progress >= 100))) {
+        console.log(`[POLLING] Job ${jobId} completed successfully`);
+        
+        hasCompleted = true;
+        
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+        
+        setCurrentPollInterval(null);
+        setProgress(100);
+        
+        // Simply store the download URL - don't fetch the file yet
+        if (jobData.output_path) {
+          const downloadUrl = `http://localhost:8000${jobData.output_path}`;
+          console.log(`[POLLING] Setting download URL: ${downloadUrl}`);
+          setGeneratedFileUrl(downloadUrl);
+        }
+        
+        setIsGenerating(false);
+        setIsComplete(true);
+        setCurrentQuote('Document generation completed successfully!');
+        
+        return;
+      }
+      
+      // Handle errors
+      if (!hasCompleted && jobData.status === 'error') {
+        console.error(`[POLLING] Job ${jobId} failed:`, jobData.error || jobData.message);
+        hasCompleted = true;
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+        setCurrentPollInterval(null);
+        setIsGenerating(false);
+        setCurrentQuote(`Error: ${jobData.message || jobData.error}`);
+        alert(`Generation failed: ${jobData.message || jobData.error}`);
+        setProgress(0);
+      }
+      
+    } catch (error) {
+      console.error(`[POLLING ERROR] Job ${jobId}:`, error);
+      if (error.message && error.message.includes('Failed to fetch')) {
+        hasCompleted = true;
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+        setCurrentPollInterval(null);
+      }
+    }
   };
+
+  interval = setInterval(fetchProgress, 500);
+  setCurrentPollInterval(interval);
+  
+  return interval;
+};
+
+const prepareDocumentPreview = async () => {
+  if (!generatedFileUrl) return;
+  
+  try {
+    setIsConvertingPreview(true);
+    const downloadResponse = await fetch(generatedFileUrl);
+    if (downloadResponse.ok) {
+      const blob = await downloadResponse.blob();
+      const container = await previewDocx(blob);
+      setPreviewContainer(container);
+    }
+  } catch (previewError) {
+    console.error('Error creating preview:', previewError);
+    setPreviewContainer(null);
+  } finally {
+    setIsConvertingPreview(false);
+  }
+};
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -441,8 +426,6 @@ useEffect(() => {
 
   const removeAllFiles = () => {
     setUploadedFiles([]);
-    // Don't reset selectedTemplateId here anymore - keep it for re-use
-    // setSelectedTemplateId(null); // Remove this line
     setIsComplete(false);
     setProgress(0);
     
@@ -455,6 +438,9 @@ useEffect(() => {
       URL.revokeObjectURL(previewPdfUrl);
       setPreviewPdfUrl(null);
     }
+    
+    // Reset preview container - ADD THIS LINE
+    setPreviewContainer(null);
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -572,154 +558,93 @@ useEffect(() => {
     }
   };
 
-const generateDocs = async () => {
-  if (!selectedTemplateId) {
-    alert('Please select a template first.');
-    return;
-  }
-
-  if (uploadedFiles.length === 0) {
-    alert('Please upload at least one file.');
-    return;
-  }
-
-  // Clear any existing polling interval
-  if (currentPollInterval) {
-    clearInterval(currentPollInterval);
-    setCurrentPollInterval(null);
-  }
-
-  setIsGenerating(true);
-  setProgress(0);
-  setIsComplete(false);
-  setCurrentQuote('Starting document generation...');
-
-  const formData = new FormData();
-  formData.append("template", selectedTemplateId);
-  formData.append("syntax_highlight", syntaxHighlighting ? "true" : "false");
-  formData.append("index_auto_generation", indexAutoGeneration ? "true" : "false");
-  formData.append("page_numbering", pageNumbering ? "true" : "false");
-  formData.append("enable_ai_execution", includeCodeOutputs ? "true" : "false");
-
-  // Index fields
-  if (indexAutoGeneration) {
-    formData.append("index_fields", JSON.stringify(indexFields));
-  }
-
-  if (includeCredentials) {
-    formData.append("include_credentials", "true");
-    Object.entries(credentials).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-  } else {
-    formData.append("include_credentials", "false");
-  }
-  
-  uploadedFiles.forEach((fileObj) => {
-    formData.append("files", fileObj.file);
-  });
-
-  try {
-    console.log("[GENERATE] Starting background job...");
-    console.log(`[GENERATE] AI execution enabled: ${includeCodeOutputs}`);
-    
-    // Step 1: Start background job
-    const generateResponse = await fetch("http://localhost:8000/documents/generate", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!generateResponse.ok) {
-      const errorText = await generateResponse.text();
-      console.error("[GENERATE ERROR]", errorText);
-      throw new Error(`Failed to start document generation: ${generateResponse.status}`);
+  const generateDocs = async () => {
+    if (!selectedTemplateId) {
+      alert('Please select a template first.');
+      return;
     }
 
-    const result = await generateResponse.json();
-    console.log("[GENERATE] Job started:", result);
+    if (uploadedFiles.length === 0) {
+      alert('Please upload at least one file.');
+      return;
+    }
 
-    // Step 2: Handle progress based on AI execution setting
-    if (includeCodeOutputs && result.jobId) {
-      // Use real-time polling for AI execution
-      console.log(`[GENERATE] Starting real polling for job: ${result.jobId}`);
-      const pollInterval = pollJobProgress(result.jobId);
-      setCurrentPollInterval(pollInterval);
-    } else if (!includeCodeOutputs && result.jobId) {
-      // Use fake progress + final polling for non-AI execution
-      console.log(`[GENERATE] Using fake progress with final polling for job: ${result.jobId}`);
-      
-      // Set up a single check after estimated completion time
-      setTimeout(async () => {
-        try {
-          console.log(`[GENERATE] Checking job completion for: ${result.jobId}`);
-          const response = await fetch(`http://localhost:8000/documents/progress/${result.jobId}`);
-          
-          if (response.ok) {
-            const jobData = await response.json();
-            
-            if (jobData.status === 'done') {
-              console.log(`[GENERATE] Job completed: ${result.jobId}`);
-              setProgress(100);
-              setIsGenerating(false);
-              setIsComplete(true);
-              setCurrentQuote("Document generation completed!");
-              
-              if (jobData.output_path) {
-                const downloadUrl = `http://localhost:8000${jobData.output_path}`;
-                setGeneratedFileUrl(downloadUrl);
-                
-                // Create preview
-                try {
-                  const downloadResponse = await fetch(downloadUrl);
-                  if (downloadResponse.ok) {
-                    const blob = await downloadResponse.blob();
-                    const container = await previewDocx(blob);
-                    setPreviewContainer(container);
-                  }
-                } catch (previewError) {
-                  console.error('Error creating preview:', previewError);
-                }
-              }
-            } else if (jobData.status === 'error') {
-              console.error(`[GENERATE] Job failed: ${result.jobId}`, jobData.error);
-              setIsGenerating(false);
-              setProgress(0);
-              alert(`Generation failed: ${jobData.message || jobData.error}`);
-            } else {
-              // Job still running, start real polling
-              console.log(`[GENERATE] Job still running, starting polling: ${result.jobId}`);
-              const pollInterval = pollJobProgress(result.jobId);
-              setCurrentPollInterval(pollInterval);
-            }
-          }
-        } catch (error) {
-          console.error(`[GENERATE] Error checking job completion:`, error);
-          // Fallback to polling
-          const pollInterval = pollJobProgress(result.jobId);
-          setCurrentPollInterval(pollInterval);
-        }
-      }, 8000); // Check after 8 seconds for non-AI jobs
+    // Clear any existing polling interval
+    if (currentPollInterval) {
+      console.log("[GENERATE] Clearing existing poll interval");
+      clearInterval(currentPollInterval);
+      setCurrentPollInterval(null);
+    }
+
+    // Set initial state BEFORE starting job
+    setIsGenerating(true);
+    setProgress(0); 
+    setIsComplete(false);
+    setCurrentQuote('Initializing document generation...');
+
+    setPreviewContainer(null);
+
+    const formData = new FormData();
+    formData.append("template", selectedTemplateId);
+    formData.append("syntax_highlight", syntaxHighlighting ? "true" : "false");
+    formData.append("index_auto_generation", indexAutoGeneration ? "true" : "false");
+    formData.append("page_numbering", pageNumbering ? "true" : "false");
+    formData.append("enable_ai_execution", includeCodeOutputs ? "true" : "false");
+
+    // Index fields
+    if (indexAutoGeneration) {
+      formData.append("index_fields", JSON.stringify(indexFields));
+    }
+
+    if (includeCredentials) {
+      formData.append("include_credentials", "true");
+      Object.entries(credentials).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
     } else {
-      throw new Error("No job ID returned from server");
+      formData.append("include_credentials", "false");
     }
     
-  } catch (err) {
-    console.error("[GENERATE ERROR]", err);
-    alert("Error generating document: " + err.message);
-    setIsGenerating(false);
-    setProgress(0);
-    setCurrentQuote('');
-  }
-};
+    uploadedFiles.forEach((fileObj) => {
+      formData.append("files", fileObj.file);
+    });
 
-  // Get progress message based on current progress
-  const getProgressMessage = (progress) => {
-    if (progress < 10) return "Uploading and validating files...";
-    if (progress < 20) return "Starting document generation...";
-    if (progress < 60) return "AI processing and code execution...";
-    if (progress < 80) return "Generating DOCX document...";
-    if (progress < 100) return "Finalizing document...";
-    return "Document generation completed!";
+    try {
+      console.log("[GENERATE] Starting background job...");
+      
+      // Step 1: Start polling BEFORE making the request
+      const result = await fetch("http://localhost:8000/documents/generate", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!result.ok) {
+        const errorText = await result.text();
+        console.error("[GENERATE ERROR]", errorText);
+        throw new Error(`Failed to start document generation: ${result.status}`);
+      }
+
+      const jobData = await result.json();
+      console.log("[GENERATE] Job started:", jobData);
+
+      // Step 2: Start polling immediately after getting jobId
+      if (jobData.jobId) {
+        console.log(`[GENERATE] Starting polling for job: ${jobData.jobId}`);
+        // Small delay to ensure backend job is properly initialized
+        setTimeout(() => {
+          pollJobProgress(jobData.jobId);
+        }, 100); // 100ms delay
+      } else {
+        throw new Error("No job ID returned from server");
+      }
+      
+    } catch (err) {
+      console.error("[GENERATE ERROR]", err);
+      alert("Error generating document: " + err.message);
+      setIsGenerating(false);
+      setProgress(0);
+      setCurrentQuote('');
+    }
   };
 
   const downloadDocs = () => {
@@ -1353,50 +1278,13 @@ const generateDocs = async () => {
                       <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
                       Processing {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}
                     </span>
-                    <span className="text-accent/70">
+                    <span className="text-accent/90">
                       {progress < 30 && "Analyzing code structure..."}
                       {progress >= 30 && progress < 60 && "Generating documentation..."}
                       {progress >= 60 && progress < 90 && "Applying template styling..."}
-                      {currentQuote || getProgressMessage(progress)}
                     </span>
                   </div>
                 </div>
-
-                {/* Debug Controls (Development Only) */}
-                
-                  {showDebugControls && (
-                  <div className="mt-6 pt-4 border-t border-accent/20">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-center gap-4">
-                        <span className="text-xs text-text font-jost opacity-60">DEV CONTROLS:</span>
-                        
-                        <div className="text-xs px-3 py-1 rounded-full bg-accent/10 text-accent">
-                          Progress Mode: {includeCodeOutputs ? 'Real-time Polling' : 'Fake Progress'}
-                        </div>
-                        
-                        <button
-                          onClick={() => {
-                            if (currentPollInterval) {
-                              clearInterval(currentPollInterval);
-                              setCurrentPollInterval(null);
-                              setIsGenerating(false);
-                            }
-                          }}
-                          className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-all duration-200"
-                        >
-                          Stop Generation
-                        </button>
-                      </div>
-                      
-                      <button
-                        onClick={() => setShowDebugControls(false)}
-                        className="text-xs text-text/50 hover:text-text transition-colors"
-                      >
-                        Hide Controls
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1415,7 +1303,11 @@ const generateDocs = async () => {
               </p>
               <div className="flex gap-4 justify-center">
                 <button
-                  onClick={() => setPreviewGeneratedDoc(true)}
+                  onClick={() => {
+                    setPreviewGeneratedDoc(true);
+                    // Always prepare fresh preview, don't check if previewContainer exists
+                    prepareDocumentPreview();
+                  }}
                   className="bg-transparent border border-accent text-accent hover:bg-accent/10 px-6 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-3 font-jost"
                 >
                   <Eye size={20} />

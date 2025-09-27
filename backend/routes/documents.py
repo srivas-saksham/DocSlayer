@@ -1,9 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import FileResponse, JSONResponse
 import os
 import uuid
 import json
-import tempfile
+import asyncio
 from typing import Optional, Dict, Any, List
 
 from services.docx_generator import generate_docx
@@ -49,9 +49,15 @@ async def background_generate_document(
         print(f"[JOB {job_id}] Files to process: {len(saved_files)}")
         print(f"[JOB {job_id}] AI execution enabled: {enable_ai_execution}")
         
+        # Add a small delay to ensure frontend can start polling
+        await asyncio.sleep(0.1)
+        
         # Update job to running status
         job_manager.update_job(job_id, progress=10, message="Starting document generation", status="running")
         print(f"[JOB {job_id}] Progress updated to 10%")
+        
+        # Add another small delay for progress visibility
+        await asyncio.sleep(0.2)
         
         ai_outputs = {}
         
@@ -60,6 +66,9 @@ async def background_generate_document(
             print(f"[JOB {job_id}] Starting AI processing")
             job_manager.update_job(job_id, progress=20, message=f"Processing {len(saved_files)} files with AI")
             print(f"[JOB {job_id}] Progress updated to 20%")
+            
+            # Small delay for progress visibility
+            await asyncio.sleep(0.3)
             
             for i, file_path in enumerate(saved_files, 1):
                 progress = 20 + (40 * i / len(saved_files))  # Progress 20-60% for AI execution
@@ -88,15 +97,20 @@ async def background_generate_document(
                     error_msg = f"Error: AI execution failed - {str(e)}"
                     ai_outputs[file_path] = ensure_string_output(error_msg)
                     print(f"[JOB {job_id}] AI processing failed for {file_path}: {error_msg}")
+                
+                # Small delay between files for progress visibility
+                await asyncio.sleep(0.1)
             
             print(f"[JOB {job_id}] Completed AI processing for all files")
         else:
             job_manager.update_job(job_id, progress=60, message="AI execution disabled, proceeding to document generation")
             print(f"[JOB {job_id}] Progress updated to 60% - AI execution disabled")
+            await asyncio.sleep(0.2)
 
         # Step 2: Generate output filename
         job_manager.update_job(job_id, progress=70, message="Preparing document generation")
         print(f"[JOB {job_id}] Progress updated to 70% - Preparing document generation")
+        await asyncio.sleep(0.2)
         
         output_filename = f"DocSlayer_{uuid.uuid4().hex[:8]}.docx"
         output_path = os.path.join(UPLOAD_DIR, output_filename)
@@ -104,18 +118,23 @@ async def background_generate_document(
         # Step 3: Generate DOCX
         job_manager.update_job(job_id, progress=80, message="Generating DOCX document")
         print(f"[JOB {job_id}] Progress updated to 80% - Generating DOCX document")
+        await asyncio.sleep(0.3)
         
-        generate_docx(
-            files=saved_files,
-            template=template,
-            output_path=output_path,
-            syntax_highlight=syntax_highlight,
-            include_credentials=include_credentials,
-            credentials=credentials_dict,
-            index_auto_generation=index_auto_generation,
-            index_fields=parsed_index_fields,
-            page_numbering=page_numbering,
-            ai_outputs=ai_outputs if ai_outputs else None
+        # Run the synchronous generate_docx in a thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            generate_docx,
+            saved_files,
+            template,
+            output_path,
+            syntax_highlight,
+            include_credentials,
+            credentials_dict,
+            index_auto_generation,
+            parsed_index_fields,
+            page_numbering,
+            ai_outputs if ai_outputs else None
         )
 
         print(f"[JOB {job_id}] DOCX generation completed: {output_path}")
@@ -156,7 +175,6 @@ async def background_generate_document(
 
 @router.post("/generate")
 async def generate_document(
-    background_tasks: BackgroundTasks,
     template: str = Form(...),
     syntax_highlight: str = Form("false"),
     include_credentials: str = Form("false"),
@@ -230,22 +248,23 @@ async def generate_document(
                 'Creation Date': assignmentDate
             }
 
-        # Step 4: Start background task
-        background_tasks.add_task(
-            background_generate_document,
-            job_id=job_id,
-            saved_files=saved_files,
-            template=template,
-            syntax_highlight=(syntax_highlight.lower() == "true"),
-            include_credentials=(include_credentials.lower() == "true"),
-            index_auto_generation=(index_auto_generation.lower() == "true"),
-            page_numbering=(page_numbering.lower() == "true"),
-            parsed_index_fields=parsed_index_fields,
-            enable_ai_execution=(enable_ai_execution.lower() == "true"),
-            credentials_dict=credentials_dict
+        # Step 4: Start background task using asyncio.create_task for proper concurrency
+        task = asyncio.create_task(
+            background_generate_document(
+                job_id=job_id,
+                saved_files=saved_files,
+                template=template,
+                syntax_highlight=(syntax_highlight.lower() == "true"),
+                include_credentials=(include_credentials.lower() == "true"),
+                index_auto_generation=(index_auto_generation.lower() == "true"),
+                page_numbering=(page_numbering.lower() == "true"),
+                parsed_index_fields=parsed_index_fields,
+                enable_ai_execution=(enable_ai_execution.lower() == "true"),
+                credentials_dict=credentials_dict
+            )
         )
 
-        print(f"[JOB STARTED] Job {job_id} - Background document generation started")
+        print(f"[JOB STARTED] Job {job_id} - Background document generation started with asyncio.create_task")
 
         # Step 5: Return job information immediately
         return JSONResponse({
