@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning, ChevronLeft, ChevronRight} from 'lucide-react';
+import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { renderAsync } from 'docx-preview';
 import { useEffect } from 'react';
 
@@ -38,6 +38,7 @@ export default function DocGeneratorPage() {
 
   // Add a flag to track download state
   const [isDownloading, setIsDownloading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -60,7 +61,7 @@ export default function DocGeneratorPage() {
   // Check if user has disabled warnings on component mount
   useEffect(() => {
   const warningDisabled = localStorage.getItem('docslayer-disable-leave-warning');
-  
+
   // Handle navigation within the app (using popstate for route changes)
   const handlePopState = (e) => {
     if (isComplete && generatedFileUrl && warningDisabled !== 'true' && !isDownloading) {
@@ -479,6 +480,13 @@ const prepareDocumentPreview = async () => {
     window.dispatchEvent(new CustomEvent('resetActiveTab', { 
       detail: { tabName: 'Generate' } 
     }));
+  };
+
+  // Handle mail copy icon 
+  const handleCopy = () => {
+    navigator.clipboard.writeText('boxx.gray@gmail.com');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const previewDocx = async (docxBlob) => {
@@ -1301,6 +1309,7 @@ const prepareDocumentPreview = async () => {
               <p className="text-text font-jost mb-6">
                 Your documentation has been successfully created and is ready for download.
               </p>
+              
               <div className="flex gap-4 justify-center">
                 <button
                   onClick={() => {
@@ -1326,6 +1335,24 @@ const prepareDocumentPreview = async () => {
                   Download Documentation
                 </button>
               </div>
+              <p className="text-gray-700 font-jost mt-6 text-center">
+                If you encounter any errors or bugs, please email us at{' '}
+                <a 
+                  href="mailto:boxx.gray@gmail.com" 
+                  className="text-blue-600 hover:text-blue-800 transition-colors duration-200 underline"
+                >
+                  boxx.gray@gmail.com
+                </a>
+                <button
+                  onClick={handleCopy}
+                  className={`ml-2 inline-flex items-center transition-colors duration-200 ${
+                    copied ? 'text-green-500' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  title={copied ? "Copied!" : "Copy email address"}
+                >
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+              </p>
             </div>
             <button
               onClick={removeAllFiles}

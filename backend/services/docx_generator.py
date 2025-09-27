@@ -452,6 +452,33 @@ def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=Non
         run = code_cell.paragraphs[0].add_run(content)
         apply_font(run, size=12, bold=False, font_name="Consolas")
 
+    # AI Output Section (NEW - only if ai_output is provided)
+    if ai_output:
+        # Add exactly one empty line before output
+        doc.add_paragraph()
+        
+        # Output Label with character shading (matching source code style)
+        output_label_para = doc.add_paragraph()
+        output_run = output_label_para.add_run("Output")
+        apply_font(output_run, size=16, bold=False)  # 16px, not bold
+        
+        # Apply character shading using OxmlElement
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"), "D9D9D9")  # Light gray background
+        output_run._r.get_or_add_rPr().append(shd)
+        
+        # Output content block in 1x1 table
+        output_content_table = doc.add_table(rows=1, cols=1)
+        output_content_cell = output_content_table.rows[0].cells[0]
+        apply_cell_borders(output_content_cell)
+        
+        # Clear the default paragraph and add output with proper formatting
+        output_content_cell.paragraphs[0].clear()
+        run = output_content_cell.paragraphs[0].add_run(ai_output)
+        apply_font(run, size=12, bold=False, font_name="Consolas")
+
 
 def apply_template3(doc, idx, content, file_path, highlight=False, ai_output=None):
     """Template 3: Minimalist style (Problem + code)."""
@@ -468,6 +495,18 @@ def apply_template3(doc, idx, content, file_path, highlight=False, ai_output=Non
         code_para = doc.add_paragraph()
         run = code_para.add_run(content)
         apply_font(run, size=11)
+
+    # AI Output Section (NEW - only if ai_output is provided)
+    if ai_output:
+        # Output heading (minimalist style)
+        output_heading = doc.add_paragraph("Output")
+        run = output_heading.runs[0]
+        apply_font(run, size=12, bold=True)
+        
+        # Output content (plain paragraph, minimalist)
+        output_para = doc.add_paragraph()
+        run = output_para.add_run(ai_output)
+        apply_font(run, size=11, font_name="Consolas")
 
 
 def apply_template4(doc, idx, content, file_path, highlight=False, ai_output=None):
@@ -518,6 +557,28 @@ def apply_template4(doc, idx, content, file_path, highlight=False, ai_output=Non
         add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=10)
     else:
         run = code_cell.paragraphs[0].add_run(content)
+        apply_font(run, size=10, font_name="Consolas")
+
+    # AI Output Section (NEW - only if ai_output is provided)
+    if ai_output:
+        # Add some spacing between source and output
+        doc.add_paragraph()
+        
+        # Output subheading in shaded cell (academic style)
+        output_table = doc.add_table(rows=1, cols=1)
+        output_cell = output_table.rows[0].cells[0]
+        apply_cell_borders(output_cell)
+        run = output_cell.paragraphs[0].add_run("Output")
+        apply_font(run, size=14, bold=True, font_name="Times New Roman")
+        apply_shading(output_cell, "D9D9D9")
+
+        # Output content block in table cell
+        output_content_table = doc.add_table(rows=1, cols=1)
+        output_content_cell = output_content_table.rows[0].cells[0]
+        apply_cell_borders(output_content_cell)
+
+        # Add the AI output with academic formatting
+        run = output_content_cell.paragraphs[0].add_run(ai_output)
         apply_font(run, size=10, font_name="Consolas")
 
     # Add horizontal line (simulated with thin paragraph spacing)
@@ -577,6 +638,29 @@ def apply_template5(doc, idx, content, file_path, highlight=False, ai_output=Non
         add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=11)
     else:
         run = code_cell.paragraphs[0].add_run(content)
+        apply_font(run, size=11, font_name="Consolas")
+
+    # AI Output Section (NEW - only if ai_output is provided)
+    if ai_output:
+        # Add spacing between source and output
+        border_cell.add_paragraph()
+        
+        # Output subheading with emoji and creative styling
+        output_sub_table = border_cell.add_table(rows=1, cols=1)
+        output_sub_cell = output_sub_table.rows[0].cells[0]
+        apply_cell_borders(output_sub_cell)
+        run = output_sub_cell.paragraphs[0].add_run("🚀 Output 🚀")
+        apply_font(run, size=14, bold=True, font_name="Segoe UI")
+        apply_shading(output_sub_cell, "E6FFE6")  # Light green
+
+        # Output content block with light mint background
+        output_content_table = border_cell.add_table(rows=1, cols=1)
+        output_content_cell = output_content_table.rows[0].cells[0]
+        apply_cell_borders(output_content_cell)
+        apply_shading(output_content_cell, "F0FFF0")  # Light mint green
+
+        # Add the AI output with creative formatting
+        run = output_content_cell.paragraphs[0].add_run(ai_output)
         apply_font(run, size=11, font_name="Consolas")
 
     # Add extra padding/spacing at bottom
