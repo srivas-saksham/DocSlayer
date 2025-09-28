@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/DocSlayer/static/css/main.0490a4be.css",
+    "main.js": "/DocSlayer/static/js/main.72568212.js",
+    "index.html": "/DocSlayer/index.html",
+    "main.0490a4be.css.map": "/DocSlayer/static/css/main.0490a4be.css.map",
+    "main.72568212.js.map": "/DocSlayer/static/js/main.72568212.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.0490a4be.css",
+    "static/js/main.72568212.js"
+  ]
+}
