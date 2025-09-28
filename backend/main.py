@@ -12,11 +12,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://localhost:3000",
-        "https://srivas-saksham.github.io",          # GitHub Pages
-        "https://docslayer.vercel.app",              # Vercel (update with actual URL)
-        "https://docslayer-git-main-srivas-saksham.vercel.app",  # Vercel preview URLs
-        "https://*.vercel.app",                      # All Vercel apps (if needed)
-        "https://docslayer-backend.onrender.com",    # Backend itself
+        "https://srivas-saksham.github.io",      
+        "https://doc-slayer.vercel.app",         # ✅ correct domain with hyphen
+        "https://docslayer-git-main-srivas-saksham.vercel.app",  # preview builds
     ],
     allow_credentials=True,
     allow_methods=["*"],
