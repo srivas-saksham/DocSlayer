@@ -959,6 +959,16 @@ const TechnicalSection = () => {
 
 // Main About Page Component
 export default function AboutPage() {
+
+  useEffect(() => {
+        document.title = "DocSlayer - About";
+  }, []);
+  
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, ['/about']);
+
   return (
     <div className="min-h-screen bg-primary">
       <AboutHero />

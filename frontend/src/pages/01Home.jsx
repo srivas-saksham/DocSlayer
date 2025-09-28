@@ -15,6 +15,10 @@ export default function DocSlayerHero() {
   const fullText = "DocSlayer";
 
   useEffect(() => {
+    document.title = "DocSlayer - Home";
+  }, []);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, ['/']);
 

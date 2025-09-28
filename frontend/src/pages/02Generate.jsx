@@ -53,6 +53,10 @@ export default function DocGeneratorPage() {
     assignmentDate: ''
   });
 
+  useEffect(() => {
+      document.title = "DocSlayer - Generate";
+  }, []);
+
   // Scroll to top on component mount
   useEffect(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });

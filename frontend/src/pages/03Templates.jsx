@@ -46,6 +46,10 @@ const TemplatePage = () => {
     }
   ];
 
+  useEffect(() => {
+      document.title = "DocSlayer - Templates";
+  }, []);
+
   // Scroll to top on component mount
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
