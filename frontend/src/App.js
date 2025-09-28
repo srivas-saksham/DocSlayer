@@ -42,14 +42,12 @@ function App() {
   return (
     <>
     <Navbar />
-    <Router>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/generate" element={<Generate />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/about" element={<About />} />
       </Routes>
-    </Router>
     </>
   );
 }
