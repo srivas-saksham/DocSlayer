@@ -11,7 +11,7 @@ import About from "./pages/04About";
 // Multi-deployment API configuration
 const getApiBaseUrl = () => {
   // Development
-  if (window.location.hostname === 'localhost') {
+  if (window.location.hostname.includes('localhost')) {
     return 'http://localhost:8000';
   }
   

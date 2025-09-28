@@ -11,7 +11,8 @@ const isGithub = window.location.hostname.includes("github.io");
 const basename = isGithub ? "/DocSlayer" : "/";
 
 root.render(
-  <BrowserRouter basename={basename}>
-    <App />
-  </BrowserRouter>
+  // <BrowserRouter basename={basename}>
+  //   <App />
+  // </BrowserRouter>
+  <App />
 );

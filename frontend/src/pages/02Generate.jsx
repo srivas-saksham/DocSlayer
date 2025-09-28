@@ -621,7 +621,7 @@ const prepareDocumentPreview = async () => {
       console.log("[GENERATE] Starting background job...");
       
       // Step 1: Start polling BEFORE making the request
-      const result = await fetch("${window.API_BASE_URL}/documents/generate", {
+      const result = await fetch(`${window.API_BASE_URL}/documents/generate`, {
         method: "POST",
         body: formData,
       });
