@@ -16,7 +16,7 @@ import {
   Layers
 } from 'lucide-react';
 
-export default function DetailsSection() {
+export default function DetailsSection({ pauseAnimation }) {
   const [isVisible, setIsVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,7 +30,6 @@ export default function DetailsSection() {
         if (entry.isIntersecting) {
           setIsVisible(true);
           setIsPlaying(true);
-          
         }
       },
       { threshold: 0.2 }
@@ -42,6 +41,13 @@ export default function DetailsSection() {
 
     return () => observer.disconnect();
   }, []);
+
+  // Pause animation when prop changes
+  useEffect(() => {
+    if (pauseAnimation) {
+      setIsPlaying(false);
+    }
+  }, [pauseAnimation]);
 
   // Auto-play steps
   useEffect(() => {
@@ -240,7 +246,7 @@ export default function DetailsSection() {
             }`}
             style={{ transitionDelay: isVisible ? '400ms' : '0ms' }}
           >
-            <div className="bg-primary rounded-3xl p-8 shadow-xl border border-primary/20 sticky top-8">
+            <div className="bg-primary rounded-3xl p-8 shadow-xl border border-primary/20 sticky top-8" style={{ minHeight: '680px' }}>
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <h3 
@@ -321,14 +327,18 @@ export default function DetailsSection() {
                             {step.description}
                           </p>
                           
-                          <p 
-                            className={`text-sm opacity-60 transition-all duration-500 overflow-hidden ${
-                              isActive ? 'max-h-20' : 'max-h-0'
-                            }`}
-                            style={{ fontFamily: 'Jost, sans-serif' }}
+                          {/* Fixed height container for details to prevent shifting */}
+                          <div 
+                            className="overflow-hidden transition-all duration-500"
+                            style={{ height: isActive ? '48px' : '0px' }}
                           >
-                            {step.details}
-                          </p>
+                            <p 
+                              className="text-sm opacity-60"
+                              style={{ fontFamily: 'Jost, sans-serif' }}
+                            >
+                              {step.details}
+                            </p>
+                          </div>
                         </div>
 
                         {/* Arrow */}
@@ -396,16 +406,11 @@ export default function DetailsSection() {
           <button 
             className="bg-primary hover:bg-primary/95 text-accent px-10 py-4 rounded-full text-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg group relative overflow-hidden"
             style={{ fontFamily: 'Jost, sans-serif' }}
+            onClick={() => {
+              window.location.href = `/generate`;
+            }}
           >
-            <button
-                className="relative z-10"
-                onClick={() => {
-                    window.location.href = `/generate`;
-                }}
-                >
-                Get Started Free
-            </button>
-
+            <span className="relative z-10">Get Started Free</span>
             
             {/* Button hover effect */}
             <div className="absolute inset-0 bg-accent/10 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>

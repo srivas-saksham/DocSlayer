@@ -7,6 +7,7 @@ import Home from "./pages/01Home";
 import Generate from "./pages/02Generate";
 import Templates from "./pages/03Templates"
 import About from "./pages/04About";
+import Footer from "./pages/05Footer";
 
 // Multi-deployment API configuration
 const getApiBaseUrl = () => {
@@ -48,6 +49,7 @@ function App() {
         <Route path="/templates" element={<Templates />} />
         <Route path="/about" element={<About />} />
       </Routes>
+    <Footer />
     </>
   );
 }
