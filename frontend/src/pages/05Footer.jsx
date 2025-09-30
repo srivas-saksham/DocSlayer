@@ -16,12 +16,14 @@ const DocSlayerFooter = () => {
     { 
       name: 'Rajan', 
       role: 'Backend Developer', 
-      linkedin: 'https://www.linkedin.com/in/mohit-ranjan-5a34a9340/' 
+      linkedin: 'https://www.linkedin.com/in/rajan-sita-110b97347/', 
+      github: 'https://github.com/RajanSita'
     },
     { 
       name: 'Gagan Jha', 
       role: 'Frontend Developer', 
-      linkedin: 'https://www.linkedin.com/in/peeyush-tiwari-105b22323/' 
+      linkedin: 'https://www.linkedin.com/in/gaganjha18/',
+      github: 'https://github.com/jhaGagan0'
     },
     { 
       name: 'Darshil Khandelwal', 
@@ -243,7 +245,7 @@ const DocSlayerFooter = () => {
                               >
                                 <Linkedin className="w-4 h-4 text-[#44413c] dark:text-[#f5f5f0] group-hover/icon:text-accent transition-colors" />
                                 <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#44413c] dark:bg-[#f5f5f0] text-white dark:text-[#44413c] text-xs rounded-lg opacity-0 group-hover/icon:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none shadow-lg">
-                                  LinkedIn Profile
+                                  LinkedIn
                                   <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#44413c] dark:border-t-[#f5f5f0]"></div>
                                 </span>
                               </a>

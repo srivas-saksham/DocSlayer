@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning, ChevronLeft, ChevronRight, Copy, TriangleAlert } from 'lucide-react';
+import { Upload, ArrowRight, Trash2, Download, Check, Loader, ChevronDown, ChevronUp, X, Eye, RefreshCcw, FileWarning, ChevronLeft, ChevronRight, Copy, TriangleAlert, Github } from 'lucide-react';
 import { renderAsync } from 'docx-preview';
 import { useEffect } from 'react';
 
@@ -38,6 +38,7 @@ export default function DocGeneratorPage() {
 
   // Add a flag to track download state
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showStarModal, setShowStarModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const fileInputRef = useRef(null);
@@ -678,6 +679,11 @@ const prepareDocumentPreview = async () => {
     setTimeout(() => {
       setIsDownloading(false);
     }, 1000);
+
+    // Show star modal after 3 seconds
+    setTimeout(() => {
+      setShowStarModal(true);
+    }, 3000);
   };
 
   // Toggle Switch Component
@@ -1621,6 +1627,60 @@ const prepareDocumentPreview = async () => {
                   className="flex-1 bg-transparent border border-accent/30 text-text hover:text-accent hover:bg-accent/10 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 font-jost hover:scale-105"
                 >
                   Leave Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Star Repository Modal */}
+        {showStarModal && (
+          <div
+            className="fixed inset-0 bg-black/70 z-[99999] flex items-center justify-center p-4"
+            onClick={() => setShowStarModal(false)}
+          >
+            <div
+              className="bg-secondary rounded-2xl p-8 max-w-md w-full shadow-2xl border border-accent/20 transform transition-all duration-300 scale-100 relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowStarModal(false)}
+                className="absolute top-4 right-4 text-text hover:text-accent transition-colors p-2 rounded-lg hover:bg-accent/10"
+              >
+                <X size={20} />
+              </button>
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="bg-accent/10 rounded-full p-3 mx-auto mb-4 w-fit">
+                  <Github className="w-8 h-8 text-accent" />
+                </div>
+                <h3 className="text-2xl font-bold text-accent font-jost mb-2">
+                  Glad that worked for you!
+                </h3>
+                <p className="text-text font-jost leading-relaxed">
+                  Mind Starring the DocSlayer repository on GitHub?
+                </p>
+                <p className="text-accent font-jost font-semibold mt-4">
+                  Thank you!
+                </p>
+              </div>
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <a
+                  href="https://github.com/srivas-saksham/DocSlayer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-accent hover:bg-accent/95 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 font-jost hover:scale-105 shadow-lg text-center"
+                  onClick={() => setShowStarModal(false)}
+                >
+                  Star on GitHub
+                </a>
+                <button
+                  onClick={() => setShowStarModal(false)}
+                  className="flex-1 bg-transparent border border-accent/30 text-text hover:text-accent hover:bg-accent/10 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 font-jost hover:scale-105"
+                >
+                  Maybe Later
                 </button>
               </div>
             </div>

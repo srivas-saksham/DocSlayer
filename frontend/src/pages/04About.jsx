@@ -188,28 +188,35 @@ const TeamSection = () => {
       name: "Saksham Srivastava",
       role: "Lead Developer",
       icon: Code2,
-      skills: "React, TypeScript, UI/UX"
+      skills: "React, TypeScript, UI/UX",
+      linkedin: "https://www.linkedin.com/in/srivas-saksham/",
+      github: "https://github.com/srivas-saksham"
     },
     {
       id: 2,
       name: "Rajan",
       role: "Backend Developer", 
       icon: Cog,
-      skills: "Node.js, Python, APIs"
+      skills: "Node.js, Python, APIs",
+      linkedin: "https://www.linkedin.com/in/rajan-sita-110b97347/",
+      github: "https://github.com/RajanSita"
     },
     {
       id: 3,
       name: "Gagan Jha",
       role: "Frontend Developer",
       icon: Palette,
-      skills: "Design Systems, Figma"
+      skills: "Design Systems, Figma",
+      linkedin: "https://www.linkedin.com/in/gaganjha18/",
+      github: "https://github.com/jhaGagan0"
     },
     {
       id: 4,
       name: "Darshil Khandelwal",
       role: "Technical Writer",
       icon: BookOpen,
-      skills: "Documentation, Content Strategy"
+      skills: "Documentation, Content Strategy",
+      linkedin: "https://www.linkedin.com/in/darshil-khandelwal-59962b335/"
     }
   ];
 
@@ -272,12 +279,26 @@ const TeamSection = () => {
                 </p>
                 
                 <div className="flex gap-2 mt-4">
-                  <button className="w-8 h-8 bg-accent/10 rounded-md flex items-center justify-center hover:bg-accent/20 transition-colors">
-                    <Github size={14} className="text-accent/70" />
-                  </button>
-                  <button className="w-8 h-8 bg-accent/10 rounded-md flex items-center justify-center hover:bg-accent/20 transition-colors">
-                    <Linkedin size={14} className="text-accent/70" />
-                  </button>
+                  {member.github && (
+                    <a 
+                      href={member.github}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-8 h-8 bg-accent/10 rounded-md flex items-center justify-center hover:bg-accent/20 transition-colors"
+                    >
+                      <Github size={14} className="text-accent/70" />
+                    </a>
+                  )}
+                  {member.linkedin && (
+                    <a 
+                      href={member.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-8 h-8 bg-accent/10 rounded-md flex items-center justify-center hover:bg-accent/20 transition-colors"
+                    >
+                      <Linkedin size={14} className="text-accent/70" />
+                    </a>
+                  )}
                 </div>
               </div>
             );
@@ -421,19 +442,21 @@ const StatsSection = () => {
   ];
 
   return (
-    <section ref={ref} className="bg-accent py-16 relative overflow-hidden">
+    <section ref={ref} className="bg-primary py-16 relative overflow-hidden">
+      <GridBackground gridSize={35} opacity={0.07} />
+      
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <div className={`mb-12 transition-all duration-1000 ${
           isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}>
           <h2 
-            className="text-2xl font-light text-primary mb-3"
+            className="text-2xl font-light text-accent mb-3"
             style={{ fontFamily: 'Jost, sans-serif' }}
           >
             Impact Metrics
           </h2>
           <p 
-            className="text-primary/70"
+            className="text-accent/70"
             style={{ fontFamily: 'Jost, sans-serif' }}
           >
             Measurable improvements in documentation workflow
@@ -451,24 +474,24 @@ const StatsSection = () => {
                 }`}
                 style={{ transitionDelay: `${index * 200}ms` }}
               >
-                <div className="bg-primary rounded-lg p-8 relative z-10">
-                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <Icon size={24} className="text-accent" />
+                <div className="bg-accent rounded-lg p-8 relative z-10">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <Icon size={24} className="text-primary" />
                   </div>
                   
-                  <div className="text-3xl font-light text-accent mb-2" style={{ fontFamily: 'Jost, sans-serif' }}>
+                  <div className="text-3xl font-light text-primary mb-2" style={{ fontFamily: 'Jost, sans-serif' }}>
                     {stat.number}{stat.suffix}
                   </div>
                   
                   <h3 
-                    className="text-accent font-medium text-sm mb-2"
+                    className="text-primary font-medium text-sm mb-2"
                     style={{ fontFamily: 'Jost, sans-serif' }}
                   >
                     {stat.label}
                   </h3>
                   
                   <p 
-                    className="text-accent/70 text-xs"
+                    className="text-primary/70 text-xs"
                     style={{ fontFamily: 'Jost, sans-serif' }}
                   >
                     {stat.description}
