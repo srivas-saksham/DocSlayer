@@ -13,7 +13,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://localhost:3000",
         "https://srivas-saksham.github.io",      
-        "https://doc-slayer.vercel.app",         # ✅ correct domain with hyphen
+        "https://docslayer.vercel.app",         # ✅ correct domain
         "https://docslayer-git-main-srivas-saksham.vercel.app",  # preview builds
     ],
     allow_credentials=True,
