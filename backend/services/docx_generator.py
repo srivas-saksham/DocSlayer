@@ -460,7 +460,7 @@ def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=Non
         # Output Label with character shading (matching source code style)
         output_label_para = doc.add_paragraph()
         output_run = output_label_para.add_run("Output")
-        apply_font(output_run, size=10, bold=False)  # 10px, not bold
+        apply_font(output_run, size=16, bold=False)  # 16px, not bold
         
         # Apply character shading using OxmlElement
         shd = OxmlElement("w:shd")
