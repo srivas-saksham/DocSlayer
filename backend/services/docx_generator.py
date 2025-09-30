@@ -422,7 +422,7 @@ def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=Non
     heading = doc.add_paragraph(f"Question {idx}")
     heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
     run = heading.runs[0]
-    apply_font(run, size=14, bold=True)
+    apply_font(run, size=16, bold=True)
     
     # Add exactly one empty line after heading
     doc.add_paragraph()
@@ -445,12 +445,12 @@ def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=Non
     apply_cell_borders(code_cell)  # Add borders
     
     if highlight:
-        add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=12)
+        add_syntax_highlighted_code_to_cell(code_cell, content, file_path, font_size=10)
     else:
         # Clear the default paragraph and add code with proper formatting
         code_cell.paragraphs[0].clear()
         run = code_cell.paragraphs[0].add_run(content)
-        apply_font(run, size=12, bold=False, font_name="Consolas")
+        apply_font(run, size=10, bold=False, font_name="Consolas")
 
     # AI Output Section (NEW - only if ai_output is provided)
     if ai_output:
@@ -460,7 +460,7 @@ def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=Non
         # Output Label with character shading (matching source code style)
         output_label_para = doc.add_paragraph()
         output_run = output_label_para.add_run("Output")
-        apply_font(output_run, size=16, bold=False)  # 16px, not bold
+        apply_font(output_run, size=10, bold=False)  # 10px, not bold
         
         # Apply character shading using OxmlElement
         shd = OxmlElement("w:shd")
@@ -477,7 +477,7 @@ def apply_template2(doc, idx, content, file_path, highlight=False, ai_output=Non
         # Clear the default paragraph and add output with proper formatting
         output_content_cell.paragraphs[0].clear()
         run = output_content_cell.paragraphs[0].add_run(ai_output)
-        apply_font(run, size=12, bold=False, font_name="Consolas")
+        apply_font(run, size=10, bold=False, font_name="Consolas")
 
 
 def apply_template3(doc, idx, content, file_path, highlight=False, ai_output=None):
