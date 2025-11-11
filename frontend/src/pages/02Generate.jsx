@@ -1397,6 +1397,12 @@ const prepareDocumentPreview = async () => {
 
               <p className="text-gray-700 font-jost mt-6 text-center">
                 <strong>Pro Tip:</strong> Search for "error" keyword in your final document to quickly locate any issues.
+                {includeCodeOutputs && (
+                  <p className="font-jost text-center text-yellow-700">
+                    Make sure to review the AI Generated outputs yourself, might contain bugs.
+                  </p>
+                )}
+                
               </p>
             </div>
             <button
@@ -1655,12 +1661,18 @@ const prepareDocumentPreview = async () => {
                 <div className="bg-accent/10 rounded-full p-3 mx-auto mb-4 w-fit">
                   <Github className="w-8 h-8 text-accent" />
                 </div>
-                <h3 className="text-2xl font-bold text-accent font-jost mb-2">
+                <h3 className="text-2xl font-bold text-accent font-jost mb-1">
                   Glad that worked for you!
                 </h3>
-                <p className="text-text font-jost leading-relaxed">
+                {includeCodeOutputs && (
+                  <p className="font-jost text-center text-yellow-700">
+                    *Make sure to review the AI Generated outputs.
+                  </p>
+                )}
+                <p className="text-text mt-4 font-jost leading-relaxed">
                   Mind Starring the DocSlayer repository on GitHub?
                 </p>
+              
                 <p className="text-accent font-jost font-semibold mt-4">
                   Thank you!
                 </p>
